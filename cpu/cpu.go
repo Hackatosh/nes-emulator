@@ -157,17 +157,120 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 
 // Ops Code operations
 
-func (cpu CPU) lda(addressingMode AddressingMode) {
+func (cpu CPU) adc() {
+	// TODO
+}
+
+func (cpu CPU) and(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerA = cpu.memoryRead(operandAddress)
+	cpu.registerA = cpu.registerA & cpu.memoryRead(operandAddress)
 	cpu.updateNegativeFlagForResult(cpu.registerA)
 	cpu.updateZeroFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) tax() {
-	cpu.registerX = cpu.registerA
+func (cpu CPU) asl() {
+	// TODO
+}
+
+func (cpu CPU) bcc() {
+	// TODO
+}
+
+func (cpu CPU) bcs() {
+	// TODO
+}
+
+func (cpu CPU) beq() {
+	// TODO
+}
+
+func (cpu CPU) bit() {
+	// TODO
+}
+
+func (cpu CPU) bmi() {
+	// TODO
+}
+
+func (cpu CPU) bne() {
+	// TODO
+}
+
+func (cpu CPU) bpl() {
+	// TODO
+}
+
+func (cpu CPU) bvc() {
+	// TODO
+}
+
+func (cpu CPU) bvs() {
+	// TODO
+}
+
+func (cpu CPU) clc() {
+	cpu.unsetDecimalFlag()
+}
+
+func (cpu CPU) cld() {
+	cpu.unsetDecimalFlag()
+}
+
+func (cpu CPU) cli() {
+	cpu.unsetInterruptDisableFlag()
+}
+
+func (cpu CPU) clv() {
+	cpu.unsetOverflowFlag()
+}
+
+func (cpu CPU) cmp() {
+	// TODO
+}
+
+func (cpu CPU) cpx() {
+	// TODO
+}
+
+func (cpu CPU) cpy() {
+	// TODO
+}
+
+func (cpu CPU) dec(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	var initialValue = cpu.memoryRead(operandAddress)
+	var result = initialValue - 1
+	cpu.memoryWrite(operandAddress, result)
+	cpu.updateNegativeFlagForResult(result)
+	cpu.updateZeroFlagForResult(result)
+}
+
+func (cpu CPU) dex() {
+	cpu.registerX -= 1
 	cpu.updateNegativeFlagForResult(cpu.registerX)
 	cpu.updateZeroFlagForResult(cpu.registerX)
+}
+
+func (cpu CPU) dey() {
+	cpu.registerY -= 1
+	cpu.updateNegativeFlagForResult(cpu.registerY)
+	cpu.updateZeroFlagForResult(cpu.registerY)
+}
+
+func (cpu CPU) eor(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.registerA = cpu.registerA ^ cpu.memoryRead(operandAddress)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.updateZeroFlagForResult(cpu.registerA)
+}
+
+func (cpu CPU) inc(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	var initialValue = cpu.memoryRead(operandAddress)
+	var result = initialValue + 1
+	cpu.memoryWrite(operandAddress, result)
+	cpu.updateNegativeFlagForResult(result)
+	cpu.updateZeroFlagForResult(result)
 }
 
 func (cpu CPU) inx() {
@@ -176,9 +279,149 @@ func (cpu CPU) inx() {
 	cpu.updateZeroFlagForResult(cpu.registerX)
 }
 
+func (cpu CPU) iny() {
+	cpu.registerY += 1
+	cpu.updateNegativeFlagForResult(cpu.registerY)
+	cpu.updateZeroFlagForResult(cpu.registerY)
+}
+
+func (cpu CPU) jmp() {
+	// TODO
+}
+
+func (cpu CPU) jsr() {
+	// TODO
+}
+
+func (cpu CPU) lda(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.registerA = cpu.memoryRead(operandAddress)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.updateZeroFlagForResult(cpu.registerA)
+}
+
+func (cpu CPU) ldx(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.registerX = cpu.memoryRead(operandAddress)
+	cpu.updateNegativeFlagForResult(cpu.registerX)
+	cpu.updateZeroFlagForResult(cpu.registerX)
+}
+
+func (cpu CPU) ldy(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.registerY = cpu.memoryRead(operandAddress)
+	cpu.updateNegativeFlagForResult(cpu.registerY)
+	cpu.updateZeroFlagForResult(cpu.registerY)
+}
+
+func (cpu CPU) lsr() {
+	// TODO
+}
+
+func (cpu CPU) nop() {}
+
+func (cpu CPU) ora(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.registerA = cpu.registerA | cpu.memoryRead(operandAddress)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.updateZeroFlagForResult(cpu.registerA)
+}
+
+func (cpu CPU) pha() {
+	// TODO
+}
+
+func (cpu CPU) php() {
+	// TODO
+}
+
+func (cpu CPU) pla() {
+	// TODO
+}
+
+func (cpu CPU) plp() {
+	// TODO
+}
+
+func (cpu CPU) rol() {
+	// TODO
+}
+
+func (cpu CPU) ror() {
+	// TODO
+}
+
+func (cpu CPU) rti() {
+	// TODO
+}
+
+func (cpu CPU) rts() {
+	// TODO
+}
+
+func (cpu CPU) sbc() {
+	// TODO
+}
+
+func (cpu CPU) sec() {
+	cpu.setCarryFlag()
+}
+
+func (cpu CPU) sed() {
+	cpu.setDecimalFlag()
+}
+
+func (cpu CPU) sei() {
+	cpu.setInterruptDisableFlag()
+}
+
 func (cpu CPU) sta(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.memoryWrite(operandAddress, cpu.registerA)
+}
+
+func (cpu CPU) stx(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.memoryWrite(operandAddress, cpu.registerX)
+}
+
+func (cpu CPU) sty(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.memoryWrite(operandAddress, cpu.registerY)
+}
+
+func (cpu CPU) tax() {
+	cpu.registerX = cpu.registerA
+	cpu.updateNegativeFlagForResult(cpu.registerX)
+	cpu.updateZeroFlagForResult(cpu.registerX)
+}
+
+func (cpu CPU) tay() {
+	cpu.registerY = cpu.registerA
+	cpu.updateNegativeFlagForResult(cpu.registerY)
+	cpu.updateZeroFlagForResult(cpu.registerY)
+}
+
+func (cpu CPU) tsx() {
+	cpu.registerX = cpu.stackPointer
+	cpu.updateNegativeFlagForResult(cpu.registerX)
+	cpu.updateZeroFlagForResult(cpu.registerX)
+}
+
+func (cpu CPU) txa() {
+	cpu.registerA = cpu.registerX
+	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.updateZeroFlagForResult(cpu.registerA)
+}
+
+func (cpu CPU) txs() {
+	cpu.stackPointer = cpu.registerX
+}
+
+func (cpu CPU) tya() {
+	cpu.registerA = cpu.registerY
+	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.updateZeroFlagForResult(cpu.registerA)
 }
 
 // Load program and reset CPU
@@ -197,10 +440,6 @@ func (cpu CPU) reset() {
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
-func (cpu CPU) todo() {
-	panic("TODO")
-}
-
 func (cpu CPU) run() {
 	for {
 		var hexCode = cpu.memory[cpu.programCounter]
@@ -208,117 +447,117 @@ func (cpu CPU) run() {
 		opCode := matchHexCodeWithOpsCode(hexCode)
 		switch opCode.operation {
 		case ADC:
-			cpu.todo()
+			cpu.adc()
 		case AND:
-			cpu.todo()
+			cpu.and()
 		case ASL:
-			cpu.todo()
+			cpu.asl()
 		case BCC:
-			cpu.todo()
+			cpu.bcc()
 		case BCS:
-			cpu.todo()
+			cpu.bcs()
 		case BEQ:
-			cpu.todo()
+			cpu.beq()
 		case BIT:
-			cpu.todo()
+			cpu.bit()
 		case BMI:
-			cpu.todo()
+			cpu.bmi()
 		case BNE:
-			cpu.todo()
+			cpu.bne()
 		case BPL:
-			cpu.todo()
+			cpu.bpl()
 		case BRK:
 			return
 		case BVS:
-			cpu.todo()
+			cpu.bvs()
 		case BVC:
-			cpu.todo()
+			cpu.bvc()
 		case CLC:
-			cpu.todo()
+			cpu.clc()
 		case CLD:
-			cpu.todo()
+			cpu.cld()
 		case CLI:
-			cpu.todo()
+			cpu.cli()
 		case CLV:
-			cpu.todo()
+			cpu.clv()
 		case CMP:
-			cpu.todo()
+			cpu.cmp()
 		case CPX:
-			cpu.todo()
+			cpu.cpx()
 		case CPY:
-			cpu.todo()
+			cpu.cpy()
 		case DEC:
-			cpu.todo()
+			cpu.dec()
 		case DEX:
-			cpu.todo()
+			cpu.dex()
 		case DEY:
-			cpu.todo()
+			cpu.dey()
 		case EOR:
-			cpu.todo()
+			cpu.eor()
 		case INC:
-			cpu.todo()
+			cpu.inc()
 		case INX:
 			cpu.inx()
 		case INY:
-			cpu.todo()
+			cpu.iny()
 		case JMP:
-			cpu.todo()
+			cpu.jmp()
 		case JSR:
-			cpu.todo()
+			cpu.jsr()
 		case LDA:
 			cpu.lda(opCode.addressingMode)
 		case LDX:
-			cpu.todo()
+			cpu.ldx()
 		case LDY:
-			cpu.todo()
+			cpu.ldy()
 		case LSR:
-			cpu.todo()
+			cpu.lsr()
 		case NOP:
-			cpu.todo()
+			cpu.nop()
 		case ORA:
-			cpu.todo()
+			cpu.ora()
 		case PHA:
-			cpu.todo()
+			cpu.pha()
 		case PHP:
-			cpu.todo()
+			cpu.php()
 		case PLA:
-			cpu.todo()
+			cpu.pla()
 		case PLP:
-			cpu.todo()
+			cpu.plp()
 		case ROL:
-			cpu.todo()
+			cpu.rol()
 		case ROR:
-			cpu.todo()
+			cpu.ror()
 		case RTI:
-			cpu.todo()
+			cpu.rti()
 		case RTS:
-			cpu.todo()
+			cpu.rts()
 		case SBC:
-			cpu.todo()
+			cpu.sbc()
 		case SEC:
-			cpu.todo()
+			cpu.sec()
 		case SED:
-			cpu.todo()
+			cpu.sed()
 		case SEI:
-			cpu.todo()
+			cpu.sei()
 		case STA:
 			cpu.sta(opCode.addressingMode)
 		case STX:
-			cpu.todo()
+			cpu.stx()
 		case STY:
-			cpu.todo()
+			cpu.sty()
 		case TAX:
 			cpu.tax()
 		case TAY:
-			cpu.todo()
+			cpu.tay()
 		case TSX:
-			cpu.todo()
+			cpu.tsx()
 		case TXA:
-			cpu.todo()
+			cpu.txa()
 		case TXS:
-			cpu.todo()
+			cpu.txs()
 		case TYA:
-			cpu.todo()
+			cpu.tya()
 		default:
 			panic(fmt.Sprintf("operation %v is unsupported", opCode.operation))
 		}
