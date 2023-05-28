@@ -6,9 +6,13 @@ import (
 )
 
 type CPU struct {
-	registerA   uint8
-	registerX   uint8
-	registerY   uint8
+	registerA    uint8
+	registerX    uint8
+	registerY    uint8
+	stackPointer uint8
+	// Memory space [0x0100 .. 0x1FF] is used for stack
+	// The stack pointer holds the address of the top of that space.
+	// NES Stack (as all stacks) grows from top to bottom
 	statusFlags uint8
 	// Status flags :
 	// 7  bit  0
@@ -142,6 +146,10 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 	case IndirectY:
 		var ref = cpu.memoryReadU16(cpu.programCounter)
 		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
+	case Implicit:
+		panic("trying to resolve implicit addressing mode")
+	case Relative:
+		panic("trying to resolve relative mode")
 	default:
 		panic(fmt.Sprintf("addressing mode %v is not supported", mode))
 	}
@@ -185,6 +193,7 @@ func (cpu CPU) reset() {
 	cpu.registerX = 0
 	cpu.registerY = 0
 	cpu.statusFlags = 0
+	cpu.stackPointer = 0
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
