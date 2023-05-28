@@ -146,7 +146,7 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 	case IndirectY:
 		var ref = cpu.memoryReadU16(cpu.programCounter)
 		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
-	case Implicit:
+	case Implied:
 		panic("trying to resolve implicit addressing mode")
 	case Relative:
 		panic("trying to resolve relative mode")
