@@ -6,19 +6,93 @@ import (
 )
 
 type CPU struct {
-	registerA      uint8
-	registerX      uint8
-	registerY      uint8
-	status         uint8
+	registerA   uint8
+	registerX   uint8
+	registerY   uint8
+	statusFlags uint8
+	// Status flags :
+	// 7  bit  0
+	// ---- ----
+	// NVss DIZC
+	// |||| ||||
+	// |||| |||+- Carry
+	// |||| ||+-- Zero
+	// |||| |+--- Interrupt Disable
+	// |||| +---- Decimal
+	// ||++------ No CPU effect, see: the B flag
+	// |+-------- Overflow
+	// +--------- Negative
 	programCounter uint16
 	memory         [0xffff]uint8
 }
 
-func NewCPU() CPU {
-	return CPU{registerA: 0, status: 0, programCounter: 0}
+// Flags Helpers
+
+func (cpu CPU) setCarryFlag() {
+	cpu.statusFlags = cpu.statusFlags | 0b0000_0001
 }
 
-// Utilities to manipulate memory
+func (cpu CPU) unsetCarryFlag() {
+	cpu.statusFlags = cpu.statusFlags & 0b1111_1110
+}
+
+func (cpu CPU) setZeroFlag() {
+	cpu.statusFlags = cpu.statusFlags | 0b0000_0010
+}
+
+func (cpu CPU) unsetZeroFlag() {
+	cpu.statusFlags = cpu.statusFlags & 0b1111_1101
+}
+
+func (cpu CPU) updateZeroFlagForResult(result uint8) {
+	if result == 0 {
+		cpu.setZeroFlag()
+	} else {
+		cpu.unsetZeroFlag()
+	}
+}
+
+func (cpu CPU) setInterruptDisableFlag() {
+	cpu.statusFlags = cpu.statusFlags | 0b0000_0100
+}
+
+func (cpu CPU) unsetInterruptDisableFlag() {
+	cpu.statusFlags = cpu.statusFlags & 0b1111_1011
+}
+
+func (cpu CPU) setDecimalFlag() {
+	cpu.statusFlags = cpu.statusFlags | 0b0000_1000
+}
+
+func (cpu CPU) unsetDecimalFlag() {
+	cpu.statusFlags = cpu.statusFlags & 0b1111_0111
+}
+
+func (cpu CPU) setOverflowFlag() {
+	cpu.statusFlags = cpu.statusFlags | 0b0100_0000
+}
+
+func (cpu CPU) unsetOverflowFlag() {
+	cpu.statusFlags = cpu.statusFlags & 0b1011_1111
+}
+
+func (cpu CPU) setNegativeFlag() {
+	cpu.statusFlags = cpu.statusFlags | 0b1000_0000
+}
+
+func (cpu CPU) unsetNegativeFlag() {
+	cpu.statusFlags = cpu.statusFlags & 0b0111_1111
+}
+
+func (cpu CPU) updateNegativeFlagForResult(result uint8) {
+	if result&0b1000_0000 != 0 {
+		cpu.setNegativeFlag()
+	} else {
+		cpu.unsetNegativeFlag()
+	}
+}
+
+// Memory helpers
 
 func (cpu CPU) memoryRead(address uint16) uint8 {
 	return cpu.memory[address]
@@ -74,33 +148,24 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 }
 
 // Ops Code operations
-func (cpu CPU) updateZeroAndNegativeFlags(result uint8) {
-	if result == 0 {
-		cpu.status = cpu.status | 0b0000_0010
-	} else {
-		cpu.status = cpu.status & 0b1111_1101
-	}
-	if result&0b1000_0000 != 0 {
-		cpu.status = cpu.status | 0b1000_0000
-	} else {
-		cpu.status = cpu.status & 0b0111_1111
-	}
-}
 
 func (cpu CPU) lda(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerA = cpu.memoryRead(operandAddress)
-	cpu.updateZeroAndNegativeFlags(cpu.registerA)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.updateZeroFlagForResult(cpu.registerA)
 }
 
 func (cpu CPU) tax() {
 	cpu.registerX = cpu.registerA
-	cpu.updateZeroAndNegativeFlags(cpu.registerX)
+	cpu.updateNegativeFlagForResult(cpu.registerX)
+	cpu.updateZeroFlagForResult(cpu.registerX)
 }
 
 func (cpu CPU) inx() {
 	cpu.registerX += 1
-	cpu.updateZeroAndNegativeFlags(cpu.registerX)
+	cpu.updateNegativeFlagForResult(cpu.registerX)
+	cpu.updateZeroFlagForResult(cpu.registerX)
 }
 
 func (cpu CPU) sta(addressingMode AddressingMode) {
@@ -119,7 +184,7 @@ func (cpu CPU) reset() {
 	cpu.registerA = 0
 	cpu.registerX = 0
 	cpu.registerY = 0
-	cpu.status = 0
+	cpu.statusFlags = 0
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
