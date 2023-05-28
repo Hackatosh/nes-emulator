@@ -197,22 +197,128 @@ func (cpu CPU) reset() {
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
+func (cpu CPU) todo() {
+	panic("TODO")
+}
+
 func (cpu CPU) run() {
 	for {
 		var hexCode = cpu.memory[cpu.programCounter]
 		cpu.programCounter += 1
 		opCode := matchHexCodeWithOpsCode(hexCode)
 		switch opCode.operation {
-		case STA:
-			cpu.sta(opCode.addressingMode)
-		case LDA:
-			cpu.lda(opCode.addressingMode)
-		case TAX:
-			cpu.tax()
-		case INX:
-			cpu.inx()
+		case ADC:
+			cpu.todo()
+		case AND:
+			cpu.todo()
+		case ASL:
+			cpu.todo()
+		case BCC:
+			cpu.todo()
+		case BCS:
+			cpu.todo()
+		case BEQ:
+			cpu.todo()
+		case BIT:
+			cpu.todo()
+		case BMI:
+			cpu.todo()
+		case BNE:
+			cpu.todo()
+		case BPL:
+			cpu.todo()
 		case BRK:
 			return
+		case BVS:
+			cpu.todo()
+		case BVC:
+			cpu.todo()
+		case CLC:
+			cpu.todo()
+		case CLD:
+			cpu.todo()
+		case CLI:
+			cpu.todo()
+		case CLV:
+			cpu.todo()
+		case CMP:
+			cpu.todo()
+		case CPX:
+			cpu.todo()
+		case CPY:
+			cpu.todo()
+		case DEC:
+			cpu.todo()
+		case DEX:
+			cpu.todo()
+		case DEY:
+			cpu.todo()
+		case EOR:
+			cpu.todo()
+		case INC:
+			cpu.todo()
+		case INX:
+			cpu.inx()
+		case INY:
+			cpu.todo()
+		case JMP:
+			cpu.todo()
+		case JSR:
+			cpu.todo()
+		case LDA:
+			cpu.lda(opCode.addressingMode)
+		case LDX:
+			cpu.todo()
+		case LDY:
+			cpu.todo()
+		case LSR:
+			cpu.todo()
+		case NOP:
+			cpu.todo()
+		case ORA:
+			cpu.todo()
+		case PHA:
+			cpu.todo()
+		case PHP:
+			cpu.todo()
+		case PLA:
+			cpu.todo()
+		case PLP:
+			cpu.todo()
+		case ROL:
+			cpu.todo()
+		case ROR:
+			cpu.todo()
+		case RTI:
+			cpu.todo()
+		case RTS:
+			cpu.todo()
+		case SBC:
+			cpu.todo()
+		case SEC:
+			cpu.todo()
+		case SED:
+			cpu.todo()
+		case SEI:
+			cpu.todo()
+		case STA:
+			cpu.sta(opCode.addressingMode)
+		case STX:
+			cpu.todo()
+		case STY:
+			cpu.todo()
+		case TAX:
+			cpu.tax()
+		case TAY:
+			cpu.todo()
+		case TSX:
+			cpu.todo()
+		case TXA:
+			cpu.todo()
+		case TXS:
+			cpu.todo()
+		case TYA:
+			cpu.todo()
 		default:
 			panic(fmt.Sprintf("operation %v is unsupported", opCode.operation))
 		}
