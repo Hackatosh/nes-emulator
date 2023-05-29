@@ -96,6 +96,20 @@ func (cpu CPU) pullStack() uint8 {
 	return cpu.memoryRead(STACK_BASE + uint16(cpu.stackPointer))
 }
 
+func (cpu CPU) pushStackU16(value uint16) {
+	var bytes = make([]uint8, 2)
+	binary.LittleEndian.PutUint16(bytes, value)
+	cpu.pushStack(bytes[0])
+	cpu.pushStack(bytes[1])
+}
+
+func (cpu CPU) pullStackU16() uint16 {
+	var bytes = make([]uint8, 2)
+	bytes[1] = cpu.pullStack()
+	bytes[0] = cpu.pullStack()
+	return binary.LittleEndian.Uint16(bytes)
+}
+
 // This does not get the operand but the address of the operand, which will be the retrieved using memory read
 func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 	switch mode {
@@ -329,12 +343,17 @@ func (cpu CPU) iny() {
 	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerY))
 }
 
-func (cpu CPU) jmp() {
-	// TODO
+func (cpu CPU) jmp(addressingMode AddressingMode) {
+	// TODO : some shady shit is done here in the tutorial, wtf ??
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	cpu.programCounter = operandAddress
 }
 
-func (cpu CPU) jsr() {
-	// TODO
+func (cpu CPU) jsr(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	// +2 is for absolute read
+	cpu.pushStackU16(cpu.programCounter + 2 - 1)
+	cpu.programCounter = operandAddress
 }
 
 func (cpu CPU) lda(addressingMode AddressingMode) {
@@ -390,6 +409,8 @@ func (cpu CPU) pha() {
 
 func (cpu CPU) php() {
 	cpu.pushStack(cpu.statusFlags)
+	cpu.setFlagToValue(BREAK_FLAG, false)
+	cpu.setFlagToValue(BREAK_2_FLAG, true)
 }
 
 func (cpu CPU) pla() {
@@ -399,7 +420,7 @@ func (cpu CPU) pla() {
 }
 
 func (cpu CPU) plp() {
-	cpu.statusFlags = cpu.pullStack()
+	cpu.statusFlags = cpu.pullStack() | BREAK_FLAG | BREAK_2_FLAG
 }
 
 func (cpu CPU) rol(addressingMode AddressingMode) {
@@ -445,11 +466,14 @@ func (cpu CPU) ror(addressingMode AddressingMode) {
 }
 
 func (cpu CPU) rti() {
-	// TODO
+	cpu.statusFlags = cpu.pullStack()
+	cpu.setFlagToValue(BREAK_FLAG, false)
+	cpu.setFlagToValue(BREAK_2_FLAG, true)
+	cpu.programCounter = cpu.pullStackU16()
 }
 
 func (cpu CPU) rts() {
-	// TODO
+	cpu.programCounter = cpu.pullStackU16() + 1
 }
 
 func (cpu CPU) sbc(addressingMode AddressingMode) {
@@ -601,9 +625,9 @@ func (cpu CPU) run() {
 		case INY:
 			cpu.iny()
 		case JMP:
-			cpu.jmp()
+			cpu.jmp(opCode.addressingMode)
 		case JSR:
-			cpu.jsr()
+			cpu.jsr(opCode.addressingMode)
 		case LDA:
 			cpu.lda(opCode.addressingMode)
 		case LDX:
@@ -661,6 +685,7 @@ func (cpu CPU) run() {
 		default:
 			panic(fmt.Sprintf("operation %v is unsupported", opCode.operation))
 		}
+		// TODO : beware of not incrementing after jump or branching !!!
 		cpu.programCounter += opCode.bytes - 1
 	}
 }
