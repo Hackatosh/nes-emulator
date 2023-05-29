@@ -103,6 +103,7 @@ type OpCode struct {
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html
+// TODO : cycles miss pages crossed / branching taken considerations
 var hexToOpsCode = map[uint8]OpCode{
 	// ADC
 	0x69: {operation: ADC, addressingMode: Immediate, cycles: 2},
