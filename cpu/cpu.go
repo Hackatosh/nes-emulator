@@ -107,7 +107,7 @@ func (cpu CPU) memoryWrite(address uint16, data uint8) {
 }
 
 func (cpu CPU) memoryReadU16(address uint16) uint16 {
-	return binary.BigEndian.Uint16(cpu.memory[address : address+1])
+	return binary.LittleEndian.Uint16(cpu.memory[address : address+1])
 }
 
 func (cpu CPU) memoryWriteU16(address uint16, data uint16) {
