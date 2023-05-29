@@ -33,110 +33,37 @@ type CPU struct {
 	memory         [0xffff]uint8
 }
 
-// Flags Helpers
+// Generic helpers
 
-func (cpu CPU) setCarryFlag() {
-	cpu.statusFlags = cpu.statusFlags | 0b0000_0001
+func isNegative(value uint8) bool {
+	return value&0b1000_0000 != 0
 }
 
-func (cpu CPU) unsetCarryFlag() {
-	cpu.statusFlags = cpu.statusFlags & 0b1111_1110
-}
+// Flags
 
-func (cpu CPU) isCarryFlagSet() bool {
-	return cpu.statusFlags&0b0000_0001 != 0
-}
+type StatusFlag uint8
 
-func (cpu CPU) updateCarryFlagForResult(hasCarry bool) {
-	if hasCarry {
-		cpu.setCarryFlag()
+const (
+	CARRY_FLAG             StatusFlag = 0b0000_0001
+	ZERO_FLAG                         = 0b0000_0010
+	INTERRUPT_DISABLE_FLAG            = 0b0000_0100
+	DECIMAL_FLAG                      = 0b0000_1000
+	BREAK_FLAG                        = 0b0001_0000
+	BREAK_2_FLAG                      = 0b0010_0000
+	OVERFLOW_FLAG                     = 0b0100_0000
+	NEGATIVE_FLAG                     = 0b1000_0000
+)
+
+func (cpu CPU) setFlagToValue(statusFlag StatusFlag, value bool) {
+	if value {
+		cpu.statusFlags = cpu.statusFlags | uint8(statusFlag)
 	} else {
-		cpu.unsetCarryFlag()
+		cpu.statusFlags = cpu.statusFlags ^ uint8(statusFlag)
 	}
 }
 
-func (cpu CPU) setZeroFlag() {
-	cpu.statusFlags = cpu.statusFlags | 0b0000_0010
-}
-
-func (cpu CPU) unsetZeroFlag() {
-	cpu.statusFlags = cpu.statusFlags & 0b1111_1101
-}
-
-func (cpu CPU) isZeroFlagSet() bool {
-	return cpu.statusFlags&0b0000_0010 != 0
-}
-
-func (cpu CPU) updateZeroFlagForResult(result uint8) {
-	if result == 0 {
-		cpu.setZeroFlag()
-	} else {
-		cpu.unsetZeroFlag()
-	}
-}
-
-func (cpu CPU) setInterruptDisableFlag() {
-	cpu.statusFlags = cpu.statusFlags | 0b0000_0100
-}
-
-func (cpu CPU) unsetInterruptDisableFlag() {
-	cpu.statusFlags = cpu.statusFlags & 0b1111_1011
-}
-
-func (cpu CPU) isInterruptDisableFlagSet() bool {
-	return cpu.statusFlags&0b0000_0100 != 0
-}
-
-func (cpu CPU) setDecimalFlag() {
-	cpu.statusFlags = cpu.statusFlags | 0b0000_1000
-}
-
-func (cpu CPU) unsetDecimalFlag() {
-	cpu.statusFlags = cpu.statusFlags & 0b1111_0111
-}
-
-func (cpu CPU) isDecimalFlagSet() bool {
-	return cpu.statusFlags&0b0000_1000 != 0
-}
-
-func (cpu CPU) setOverflowFlag() {
-	cpu.statusFlags = cpu.statusFlags | 0b0100_0000
-}
-
-func (cpu CPU) unsetOverflowFlag() {
-	cpu.statusFlags = cpu.statusFlags & 0b1011_1111
-}
-
-func (cpu CPU) isOverflowFlagSet() bool {
-	return cpu.statusFlags&0b0100_0000 != 0
-}
-
-func (cpu CPU) updateOverflowFlagForResult(hasOverflow bool) {
-	if hasOverflow {
-		cpu.setOverflowFlag()
-	} else {
-		cpu.unsetOverflowFlag()
-	}
-}
-
-func (cpu CPU) setNegativeFlag() {
-	cpu.statusFlags = cpu.statusFlags | 0b1000_0000
-}
-
-func (cpu CPU) unsetNegativeFlag() {
-	cpu.statusFlags = cpu.statusFlags & 0b0111_1111
-}
-
-func (cpu CPU) isNegativeFlagSet() bool {
-	return cpu.statusFlags&0b1000_0000 != 0
-}
-
-func (cpu CPU) updateNegativeFlagForResult(result uint8) {
-	if result&0b1000_0000 != 0 {
-		cpu.setNegativeFlag()
-	} else {
-		cpu.unsetNegativeFlag()
-	}
+func (cpu CPU) isFlagSet(statusFlag StatusFlag) bool {
+	return cpu.statusFlags&uint8(statusFlag) != 0
 }
 
 // Memory helpers
@@ -232,7 +159,8 @@ func (cpu CPU) branch(condition bool) {
 		if isPositive {
 			cpu.programCounter += uint16(operand)
 		} else {
-			cpu.programCounter -= uint16(operand)
+			// 0x100 is 256
+			cpu.programCounter += (0x100 - uint16(operand))
 		}
 	}
 }
@@ -242,87 +170,114 @@ func (cpu CPU) branch(condition bool) {
 func (cpu CPU) adc(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	var operand = cpu.memoryRead(operandAddress)
-	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, operand, cpu.isCarryFlagSet())
+	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, operand, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
-	cpu.updateCarryFlagForResult(hasCarry)
-	cpu.updateOverflowFlagForResult(hasOverflow)
-	cpu.updateZeroFlagForResult(cpu.registerA)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
+	cpu.setFlagToValue(OVERFLOW_FLAG, hasOverflow)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) and(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerA = cpu.registerA & cpu.memoryRead(operandAddress)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
-	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
-func (cpu CPU) asl() {
-	// TODO
+func (cpu CPU) asl(addressingMode AddressingMode) {
+	if addressingMode == Accumulator {
+		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b1000_0000 != 0)
+		cpu.registerA = cpu.registerA << 1
+		cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
+	} else {
+		var operandAddress = cpu.getOperandAddress(addressingMode)
+		var operand = cpu.memoryRead(operandAddress)
+		cpu.setFlagToValue(CARRY_FLAG, operand&0b1000_0000 != 0)
+		var result = operand << 1
+		cpu.memoryWrite(operandAddress, result)
+		cpu.setFlagToValue(ZERO_FLAG, result == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
+	}
 }
 
 func (cpu CPU) bcc() {
-	cpu.branch(!cpu.isCarryFlagSet())
+	cpu.branch(!cpu.isFlagSet(CARRY_FLAG))
 }
 
 func (cpu CPU) bcs() {
-	cpu.branch(cpu.isCarryFlagSet())
+	cpu.branch(cpu.isFlagSet(CARRY_FLAG))
 }
 
 func (cpu CPU) beq() {
-	cpu.branch(cpu.isZeroFlagSet())
+	cpu.branch(cpu.isFlagSet(ZERO_FLAG))
 }
 
-func (cpu CPU) bit() {
-	// TODO
+func (cpu CPU) bit(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	var operand = cpu.memoryRead(operandAddress)
+	var result = operand & cpu.registerA
+	cpu.setFlagToValue(ZERO_FLAG, result == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
+	cpu.setFlagToValue(OVERFLOW_FLAG, result&0b0100_0000 != 0)
 }
 
 func (cpu CPU) bmi() {
-	cpu.branch(cpu.isNegativeFlagSet())
+	cpu.branch(cpu.isFlagSet(NEGATIVE_FLAG))
 }
 
 func (cpu CPU) bne() {
-	cpu.branch(!cpu.isZeroFlagSet())
+	cpu.branch(!cpu.isFlagSet(ZERO_FLAG))
 }
 
 func (cpu CPU) bpl() {
-	cpu.branch(!cpu.isNegativeFlagSet())
+	cpu.branch(!cpu.isFlagSet(NEGATIVE_FLAG))
 }
 
 func (cpu CPU) bvc() {
-	cpu.branch(!cpu.isOverflowFlagSet())
+	cpu.branch(!cpu.isFlagSet(OVERFLOW_FLAG))
 }
 
 func (cpu CPU) bvs() {
-	cpu.branch(cpu.isOverflowFlagSet())
+	cpu.branch(cpu.isFlagSet(OVERFLOW_FLAG))
 }
 
 func (cpu CPU) clc() {
-	cpu.unsetDecimalFlag()
+	cpu.setFlagToValue(CARRY_FLAG, false)
 }
 
 func (cpu CPU) cld() {
-	cpu.unsetDecimalFlag()
+	cpu.setFlagToValue(DECIMAL_FLAG, false)
 }
 
 func (cpu CPU) cli() {
-	cpu.unsetInterruptDisableFlag()
+	cpu.setFlagToValue(INTERRUPT_DISABLE_FLAG, false)
 }
 
 func (cpu CPU) clv() {
-	cpu.unsetOverflowFlag()
+	cpu.setFlagToValue(OVERFLOW_FLAG, false)
 }
 
-func (cpu CPU) cmp() {
-	// TODO
+func (cpu CPU) compare(addressingMode AddressingMode, compareWith uint8) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	var operand = cpu.memoryRead(operandAddress)
+	var result = compareWith - operand
+	cpu.setFlagToValue(ZERO_FLAG, result == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
+	cpu.setFlagToValue(CARRY_FLAG, compareWith > operand)
 }
 
-func (cpu CPU) cpx() {
-	// TODO
+func (cpu CPU) cmp(addressingMode AddressingMode) {
+	cpu.compare(addressingMode, cpu.registerA)
 }
 
-func (cpu CPU) cpy() {
-	// TODO
+func (cpu CPU) cpx(addressingMode AddressingMode) {
+	cpu.compare(addressingMode, cpu.registerX)
+}
+
+func (cpu CPU) cpy(addressingMode AddressingMode) {
+	cpu.compare(addressingMode, cpu.registerY)
 }
 
 func (cpu CPU) dec(addressingMode AddressingMode) {
@@ -330,27 +285,27 @@ func (cpu CPU) dec(addressingMode AddressingMode) {
 	var operand = cpu.memoryRead(operandAddress)
 	var result = operand - 1
 	cpu.memoryWrite(operandAddress, result)
-	cpu.updateNegativeFlagForResult(result)
-	cpu.updateZeroFlagForResult(result)
+	cpu.setFlagToValue(ZERO_FLAG, result == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
 }
 
 func (cpu CPU) dex() {
 	cpu.registerX -= 1
-	cpu.updateNegativeFlagForResult(cpu.registerX)
-	cpu.updateZeroFlagForResult(cpu.registerX)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerX == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerX))
 }
 
 func (cpu CPU) dey() {
 	cpu.registerY -= 1
-	cpu.updateNegativeFlagForResult(cpu.registerY)
-	cpu.updateZeroFlagForResult(cpu.registerY)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerY == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerY))
 }
 
 func (cpu CPU) eor(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerA = cpu.registerA ^ cpu.memoryRead(operandAddress)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
-	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) inc(addressingMode AddressingMode) {
@@ -358,20 +313,20 @@ func (cpu CPU) inc(addressingMode AddressingMode) {
 	var operand = cpu.memoryRead(operandAddress)
 	var result = operand + 1
 	cpu.memoryWrite(operandAddress, result)
-	cpu.updateNegativeFlagForResult(result)
-	cpu.updateZeroFlagForResult(result)
+	cpu.setFlagToValue(ZERO_FLAG, result == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
 }
 
 func (cpu CPU) inx() {
 	cpu.registerX += 1
-	cpu.updateNegativeFlagForResult(cpu.registerX)
-	cpu.updateZeroFlagForResult(cpu.registerX)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerX == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerX))
 }
 
 func (cpu CPU) iny() {
 	cpu.registerY += 1
-	cpu.updateNegativeFlagForResult(cpu.registerY)
-	cpu.updateZeroFlagForResult(cpu.registerY)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerY == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerY))
 }
 
 func (cpu CPU) jmp() {
@@ -385,26 +340,39 @@ func (cpu CPU) jsr() {
 func (cpu CPU) lda(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerA = cpu.memoryRead(operandAddress)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
-	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) ldx(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerX = cpu.memoryRead(operandAddress)
-	cpu.updateNegativeFlagForResult(cpu.registerX)
-	cpu.updateZeroFlagForResult(cpu.registerX)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerX == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerX))
 }
 
 func (cpu CPU) ldy(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerY = cpu.memoryRead(operandAddress)
-	cpu.updateNegativeFlagForResult(cpu.registerY)
-	cpu.updateZeroFlagForResult(cpu.registerY)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerY == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerY))
 }
 
-func (cpu CPU) lsr() {
-	// TODO
+func (cpu CPU) lsr(addressingMode AddressingMode) {
+	if addressingMode == Accumulator {
+		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
+		cpu.registerA = cpu.registerA >> 1
+		cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
+	} else {
+		var operandAddress = cpu.getOperandAddress(addressingMode)
+		var operand = cpu.memoryRead(operandAddress)
+		cpu.setFlagToValue(CARRY_FLAG, operand&0b0000_0001 != 0)
+		var result = operand >> 1
+		cpu.memoryWrite(operandAddress, result)
+		cpu.setFlagToValue(ZERO_FLAG, result == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
+	}
 }
 
 func (cpu CPU) nop() {}
@@ -412,8 +380,8 @@ func (cpu CPU) nop() {}
 func (cpu CPU) ora(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	cpu.registerA = cpu.registerA | cpu.memoryRead(operandAddress)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
-	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) pha() {
@@ -426,20 +394,54 @@ func (cpu CPU) php() {
 
 func (cpu CPU) pla() {
 	cpu.registerA = cpu.pullStack()
-	cpu.updateZeroFlagForResult(cpu.registerA)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) plp() {
 	cpu.statusFlags = cpu.pullStack()
 }
 
-func (cpu CPU) rol() {
-	// TODO
+func (cpu CPU) rol(addressingMode AddressingMode) {
+	var carryMask uint8 = 0b0000_0000
+	if cpu.isFlagSet(CARRY_FLAG) {
+		carryMask = 0b0000_0001
+	}
+	if addressingMode == Accumulator {
+		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b1000_0000 != 0)
+		cpu.registerA = (cpu.registerA << 1) | carryMask
+		cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
+	} else {
+		var operandAddress = cpu.getOperandAddress(addressingMode)
+		var operand = cpu.memoryRead(operandAddress)
+		cpu.setFlagToValue(CARRY_FLAG, operand&0b1000_0000 != 0)
+		var result = operand<<1 | carryMask
+		cpu.memoryWrite(operandAddress, result)
+		cpu.setFlagToValue(ZERO_FLAG, result == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
+	}
 }
 
-func (cpu CPU) ror() {
-	// TODO
+func (cpu CPU) ror(addressingMode AddressingMode) {
+	var carryMask uint8 = 0b0000_0000
+	if cpu.isFlagSet(CARRY_FLAG) {
+		carryMask = 0b1000_0000
+	}
+	if addressingMode == Accumulator {
+		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
+		cpu.registerA = (cpu.registerA >> 1) | carryMask
+		cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
+	} else {
+		var operandAddress = cpu.getOperandAddress(addressingMode)
+		var operand = cpu.memoryRead(operandAddress)
+		cpu.setFlagToValue(CARRY_FLAG, operand&0b0000_0001 != 0)
+		var result = operand>>1 | carryMask
+		cpu.memoryWrite(operandAddress, result)
+		cpu.setFlagToValue(ZERO_FLAG, result == 0)
+		cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
+	}
 }
 
 func (cpu CPU) rti() {
@@ -453,24 +455,24 @@ func (cpu CPU) rts() {
 func (cpu CPU) sbc(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
 	var operand = cpu.memoryRead(operandAddress)
-	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isCarryFlagSet())
+	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
-	cpu.updateCarryFlagForResult(hasCarry)
-	cpu.updateOverflowFlagForResult(hasOverflow)
-	cpu.updateZeroFlagForResult(cpu.registerA)
-	cpu.updateNegativeFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
+	cpu.setFlagToValue(OVERFLOW_FLAG, hasOverflow)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) sec() {
-	cpu.setCarryFlag()
+	cpu.setFlagToValue(CARRY_FLAG, true)
 }
 
 func (cpu CPU) sed() {
-	cpu.setDecimalFlag()
+	cpu.setFlagToValue(DECIMAL_FLAG, true)
 }
 
 func (cpu CPU) sei() {
-	cpu.setInterruptDisableFlag()
+	cpu.setFlagToValue(INTERRUPT_DISABLE_FLAG, true)
 }
 
 func (cpu CPU) sta(addressingMode AddressingMode) {
@@ -490,26 +492,26 @@ func (cpu CPU) sty(addressingMode AddressingMode) {
 
 func (cpu CPU) tax() {
 	cpu.registerX = cpu.registerA
-	cpu.updateNegativeFlagForResult(cpu.registerX)
-	cpu.updateZeroFlagForResult(cpu.registerX)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerX == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerX))
 }
 
 func (cpu CPU) tay() {
 	cpu.registerY = cpu.registerA
-	cpu.updateNegativeFlagForResult(cpu.registerY)
-	cpu.updateZeroFlagForResult(cpu.registerY)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerY == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerY))
 }
 
 func (cpu CPU) tsx() {
 	cpu.registerX = cpu.stackPointer
-	cpu.updateNegativeFlagForResult(cpu.registerX)
-	cpu.updateZeroFlagForResult(cpu.registerX)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerX == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerX))
 }
 
 func (cpu CPU) txa() {
 	cpu.registerA = cpu.registerX
-	cpu.updateNegativeFlagForResult(cpu.registerA)
-	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 func (cpu CPU) txs() {
@@ -518,8 +520,8 @@ func (cpu CPU) txs() {
 
 func (cpu CPU) tya() {
 	cpu.registerA = cpu.registerY
-	cpu.updateNegativeFlagForResult(cpu.registerA)
-	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(ZERO_FLAG, cpu.registerA == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(cpu.registerA))
 }
 
 // Load program and reset CPU
@@ -549,7 +551,7 @@ func (cpu CPU) run() {
 		case AND:
 			cpu.and(opCode.addressingMode)
 		case ASL:
-			cpu.asl()
+			cpu.asl(opCode.addressingMode)
 		case BCC:
 			cpu.bcc()
 		case BCS:
@@ -557,7 +559,7 @@ func (cpu CPU) run() {
 		case BEQ:
 			cpu.beq()
 		case BIT:
-			cpu.bit()
+			cpu.bit(opCode.addressingMode)
 		case BMI:
 			cpu.bmi()
 		case BNE:
@@ -579,11 +581,11 @@ func (cpu CPU) run() {
 		case CLV:
 			cpu.clv()
 		case CMP:
-			cpu.cmp()
+			cpu.cmp(opCode.addressingMode)
 		case CPX:
-			cpu.cpx()
+			cpu.cpx(opCode.addressingMode)
 		case CPY:
-			cpu.cpy()
+			cpu.cpy(opCode.addressingMode)
 		case DEC:
 			cpu.dec(opCode.addressingMode)
 		case DEX:
@@ -609,7 +611,7 @@ func (cpu CPU) run() {
 		case LDY:
 			cpu.ldy(opCode.addressingMode)
 		case LSR:
-			cpu.lsr()
+			cpu.lsr(opCode.addressingMode)
 		case NOP:
 			cpu.nop()
 		case ORA:
@@ -623,9 +625,9 @@ func (cpu CPU) run() {
 		case PLP:
 			cpu.plp()
 		case ROL:
-			cpu.rol()
+			cpu.rol(opCode.addressingMode)
 		case ROR:
-			cpu.ror()
+			cpu.ror(opCode.addressingMode)
 		case RTI:
 			cpu.rti()
 		case RTS:
