@@ -158,6 +158,11 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 	}
 }
 
+func (cpu CPU) getOperandDirectly(mode AddressingMode) uint8 {
+	var operandAddress = cpu.getOperandAddress(mode)
+	return cpu.memoryRead(operandAddress)
+}
+
 // Helpers for Ops Code operations
 
 // http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
@@ -174,10 +179,8 @@ func (cpu CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
 
 func (cpu CPU) branch(condition bool) {
 	if condition {
-		var operandAddress = cpu.getOperandAddress(Relative)
-		var operand = cpu.memoryRead(operandAddress)
-		isPositive := operand&0b1000_0000 == 0
-		if isPositive {
+		var operand = cpu.getOperandDirectly(Relative)
+		if !isNegative(operand) {
 			cpu.programCounter += uint16(operand)
 		} else {
 			// 0x100 is 256
@@ -189,8 +192,7 @@ func (cpu CPU) branch(condition bool) {
 // Ops code operations
 
 func (cpu CPU) adc(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var operand = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
 	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, operand, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
 	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
@@ -199,8 +201,8 @@ func (cpu CPU) adc(addressingMode AddressingMode) {
 }
 
 func (cpu CPU) and(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerA = cpu.registerA & cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
+	cpu.registerA = cpu.registerA & operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
@@ -232,8 +234,7 @@ func (cpu CPU) beq() {
 }
 
 func (cpu CPU) bit(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var operand = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
 	var result = operand & cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 	cpu.setFlagToValue(OVERFLOW_FLAG, result&0b0100_0000 != 0)
@@ -276,8 +277,7 @@ func (cpu CPU) clv() {
 }
 
 func (cpu CPU) compare(addressingMode AddressingMode, compareWith uint8) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var operand = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
 	var result = compareWith - operand
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 	cpu.setFlagToValue(CARRY_FLAG, compareWith > operand)
@@ -314,8 +314,8 @@ func (cpu CPU) dey() {
 }
 
 func (cpu CPU) eor(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerA = cpu.registerA ^ cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
+	cpu.registerA = cpu.registerA ^ operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
@@ -351,20 +351,20 @@ func (cpu CPU) jsr(addressingMode AddressingMode) {
 }
 
 func (cpu CPU) lda(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerA = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
+	cpu.registerA = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu CPU) ldx(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerX = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
+	cpu.registerX = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
 func (cpu CPU) ldy(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerY = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
+	cpu.registerY = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
@@ -386,8 +386,8 @@ func (cpu CPU) lsr(addressingMode AddressingMode) {
 func (cpu CPU) nop() {}
 
 func (cpu CPU) ora(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.registerA = cpu.registerA | cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
+	cpu.registerA = cpu.registerA | operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
@@ -460,8 +460,7 @@ func (cpu CPU) rts() {
 }
 
 func (cpu CPU) sbc(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var operand = cpu.memoryRead(operandAddress)
+	var operand = cpu.getOperandDirectly(addressingMode)
 	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
 	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
