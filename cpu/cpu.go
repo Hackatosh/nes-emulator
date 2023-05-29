@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+const STACK_BASE uint16 = 0x0100
+const STACK_RESET uint8 = 0xfd
+
 type CPU struct {
 	registerA    uint8
 	registerX    uint8
@@ -40,12 +43,28 @@ func (cpu CPU) unsetCarryFlag() {
 	cpu.statusFlags = cpu.statusFlags & 0b1111_1110
 }
 
+func (cpu CPU) isCarryFlagSet() bool {
+	return cpu.statusFlags&0b0000_0001 != 0
+}
+
+func (cpu CPU) updateCarryFlagForResult(hasCarry bool) {
+	if hasCarry {
+		cpu.setCarryFlag()
+	} else {
+		cpu.unsetCarryFlag()
+	}
+}
+
 func (cpu CPU) setZeroFlag() {
 	cpu.statusFlags = cpu.statusFlags | 0b0000_0010
 }
 
 func (cpu CPU) unsetZeroFlag() {
 	cpu.statusFlags = cpu.statusFlags & 0b1111_1101
+}
+
+func (cpu CPU) isZeroFlagSet() bool {
+	return cpu.statusFlags&0b0000_0010 != 0
 }
 
 func (cpu CPU) updateZeroFlagForResult(result uint8) {
@@ -64,12 +83,20 @@ func (cpu CPU) unsetInterruptDisableFlag() {
 	cpu.statusFlags = cpu.statusFlags & 0b1111_1011
 }
 
+func (cpu CPU) isInterruptDisableFlagSet() bool {
+	return cpu.statusFlags&0b0000_0100 != 0
+}
+
 func (cpu CPU) setDecimalFlag() {
 	cpu.statusFlags = cpu.statusFlags | 0b0000_1000
 }
 
 func (cpu CPU) unsetDecimalFlag() {
 	cpu.statusFlags = cpu.statusFlags & 0b1111_0111
+}
+
+func (cpu CPU) isDecimalFlagSet() bool {
+	return cpu.statusFlags&0b0000_1000 != 0
 }
 
 func (cpu CPU) setOverflowFlag() {
@@ -80,12 +107,28 @@ func (cpu CPU) unsetOverflowFlag() {
 	cpu.statusFlags = cpu.statusFlags & 0b1011_1111
 }
 
+func (cpu CPU) isOverflowFlagSet() bool {
+	return cpu.statusFlags&0b0100_0000 != 0
+}
+
+func (cpu CPU) updateOverflowFlagForResult(hasOverflow bool) {
+	if hasOverflow {
+		cpu.setOverflowFlag()
+	} else {
+		cpu.unsetOverflowFlag()
+	}
+}
+
 func (cpu CPU) setNegativeFlag() {
 	cpu.statusFlags = cpu.statusFlags | 0b1000_0000
 }
 
 func (cpu CPU) unsetNegativeFlag() {
 	cpu.statusFlags = cpu.statusFlags & 0b0111_1111
+}
+
+func (cpu CPU) isNegativeFlagSet() bool {
+	return cpu.statusFlags&0b1000_0000 != 0
 }
 
 func (cpu CPU) updateNegativeFlagForResult(result uint8) {
@@ -114,10 +157,24 @@ func (cpu CPU) memoryWriteU16(address uint16, data uint16) {
 	binary.LittleEndian.PutUint16(cpu.memory[address:address+1], data)
 }
 
+// Stack helpers
+
+func (cpu CPU) pushStack(value uint8) {
+	cpu.memoryWrite(STACK_BASE+uint16(cpu.stackPointer), value)
+	cpu.stackPointer -= 1
+}
+
+func (cpu CPU) pullStack() uint8 {
+	cpu.stackPointer += 1
+	return cpu.memoryRead(STACK_BASE + uint16(cpu.stackPointer))
+}
+
 // This does not get the operand but the address of the operand, which will be the retrieved using memory read
 func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 	switch mode {
 	case Immediate:
+		return cpu.programCounter
+	case Relative:
 		return cpu.programCounter
 	case ZeroPage:
 		// It's only a 8 bits address with Zero Page, so you can only get an address in the first 256 memory cells
@@ -148,17 +205,49 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
 	case Implied:
 		panic("trying to resolve implicit addressing mode")
-	case Relative:
-		panic("trying to resolve relative mode")
 	default:
 		panic(fmt.Sprintf("addressing mode %v is not supported", mode))
 	}
 }
 
-// Ops Code operations
+// Helpers for Ops Code operations
 
-func (cpu CPU) adc() {
-	// TODO
+// http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+func (cpu CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
+	var sum = uint16(a) + uint16(b)
+	if carry {
+		sum += 1
+	}
+	var hasCarry = sum>>8 != 0
+	var result = uint8(sum)
+	var hasOverflow = (a^result)&(b^result)&0x80 != 0
+	return result, hasCarry, hasOverflow
+}
+
+func (cpu CPU) branch(condition bool) {
+	if condition {
+		var operandAddress = cpu.getOperandAddress(Relative)
+		var operand = cpu.memoryRead(operandAddress)
+		isPositive := operand&0b1000_0000 == 0
+		if isPositive {
+			cpu.programCounter += uint16(operand)
+		} else {
+			cpu.programCounter -= uint16(operand)
+		}
+	}
+}
+
+// Ops code operations
+
+func (cpu CPU) adc(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	var operand = cpu.memoryRead(operandAddress)
+	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, operand, cpu.isCarryFlagSet())
+	cpu.registerA = result
+	cpu.updateCarryFlagForResult(hasCarry)
+	cpu.updateOverflowFlagForResult(hasOverflow)
+	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu CPU) and(addressingMode AddressingMode) {
@@ -173,15 +262,15 @@ func (cpu CPU) asl() {
 }
 
 func (cpu CPU) bcc() {
-	// TODO
+	cpu.branch(!cpu.isCarryFlagSet())
 }
 
 func (cpu CPU) bcs() {
-	// TODO
+	cpu.branch(cpu.isCarryFlagSet())
 }
 
 func (cpu CPU) beq() {
-	// TODO
+	cpu.branch(cpu.isZeroFlagSet())
 }
 
 func (cpu CPU) bit() {
@@ -189,23 +278,23 @@ func (cpu CPU) bit() {
 }
 
 func (cpu CPU) bmi() {
-	// TODO
+	cpu.branch(cpu.isNegativeFlagSet())
 }
 
 func (cpu CPU) bne() {
-	// TODO
+	cpu.branch(!cpu.isZeroFlagSet())
 }
 
 func (cpu CPU) bpl() {
-	// TODO
+	cpu.branch(!cpu.isNegativeFlagSet())
 }
 
 func (cpu CPU) bvc() {
-	// TODO
+	cpu.branch(!cpu.isOverflowFlagSet())
 }
 
 func (cpu CPU) bvs() {
-	// TODO
+	cpu.branch(cpu.isOverflowFlagSet())
 }
 
 func (cpu CPU) clc() {
@@ -238,8 +327,8 @@ func (cpu CPU) cpy() {
 
 func (cpu CPU) dec(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var initialValue = cpu.memoryRead(operandAddress)
-	var result = initialValue - 1
+	var operand = cpu.memoryRead(operandAddress)
+	var result = operand - 1
 	cpu.memoryWrite(operandAddress, result)
 	cpu.updateNegativeFlagForResult(result)
 	cpu.updateZeroFlagForResult(result)
@@ -266,8 +355,8 @@ func (cpu CPU) eor(addressingMode AddressingMode) {
 
 func (cpu CPU) inc(addressingMode AddressingMode) {
 	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var initialValue = cpu.memoryRead(operandAddress)
-	var result = initialValue + 1
+	var operand = cpu.memoryRead(operandAddress)
+	var result = operand + 1
 	cpu.memoryWrite(operandAddress, result)
 	cpu.updateNegativeFlagForResult(result)
 	cpu.updateZeroFlagForResult(result)
@@ -328,19 +417,21 @@ func (cpu CPU) ora(addressingMode AddressingMode) {
 }
 
 func (cpu CPU) pha() {
-	// TODO
+	cpu.pushStack(cpu.registerA)
 }
 
 func (cpu CPU) php() {
-	// TODO
+	cpu.pushStack(cpu.statusFlags)
 }
 
 func (cpu CPU) pla() {
-	// TODO
+	cpu.registerA = cpu.pullStack()
+	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu CPU) plp() {
-	// TODO
+	cpu.statusFlags = cpu.pullStack()
 }
 
 func (cpu CPU) rol() {
@@ -359,8 +450,15 @@ func (cpu CPU) rts() {
 	// TODO
 }
 
-func (cpu CPU) sbc() {
-	// TODO
+func (cpu CPU) sbc(addressingMode AddressingMode) {
+	var operandAddress = cpu.getOperandAddress(addressingMode)
+	var operand = cpu.memoryRead(operandAddress)
+	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isCarryFlagSet())
+	cpu.registerA = result
+	cpu.updateCarryFlagForResult(hasCarry)
+	cpu.updateOverflowFlagForResult(hasOverflow)
+	cpu.updateZeroFlagForResult(cpu.registerA)
+	cpu.updateNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu CPU) sec() {
@@ -436,7 +534,7 @@ func (cpu CPU) reset() {
 	cpu.registerX = 0
 	cpu.registerY = 0
 	cpu.statusFlags = 0
-	cpu.stackPointer = 0
+	cpu.stackPointer = STACK_RESET
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
@@ -444,12 +542,12 @@ func (cpu CPU) run() {
 	for {
 		var hexCode = cpu.memory[cpu.programCounter]
 		cpu.programCounter += 1
-		opCode := matchHexCodeWithOpsCode(hexCode)
+		var opCode = matchHexCodeWithOpsCode(hexCode)
 		switch opCode.operation {
 		case ADC:
-			cpu.adc()
+			cpu.adc(opCode.addressingMode)
 		case AND:
-			cpu.and()
+			cpu.and(opCode.addressingMode)
 		case ASL:
 			cpu.asl()
 		case BCC:
@@ -487,15 +585,15 @@ func (cpu CPU) run() {
 		case CPY:
 			cpu.cpy()
 		case DEC:
-			cpu.dec()
+			cpu.dec(opCode.addressingMode)
 		case DEX:
 			cpu.dex()
 		case DEY:
 			cpu.dey()
 		case EOR:
-			cpu.eor()
+			cpu.eor(opCode.addressingMode)
 		case INC:
-			cpu.inc()
+			cpu.inc(opCode.addressingMode)
 		case INX:
 			cpu.inx()
 		case INY:
@@ -507,15 +605,15 @@ func (cpu CPU) run() {
 		case LDA:
 			cpu.lda(opCode.addressingMode)
 		case LDX:
-			cpu.ldx()
+			cpu.ldx(opCode.addressingMode)
 		case LDY:
-			cpu.ldy()
+			cpu.ldy(opCode.addressingMode)
 		case LSR:
 			cpu.lsr()
 		case NOP:
 			cpu.nop()
 		case ORA:
-			cpu.ora()
+			cpu.ora(opCode.addressingMode)
 		case PHA:
 			cpu.pha()
 		case PHP:
@@ -533,7 +631,7 @@ func (cpu CPU) run() {
 		case RTS:
 			cpu.rts()
 		case SBC:
-			cpu.sbc()
+			cpu.sbc(opCode.addressingMode)
 		case SEC:
 			cpu.sec()
 		case SED:
@@ -543,9 +641,9 @@ func (cpu CPU) run() {
 		case STA:
 			cpu.sta(opCode.addressingMode)
 		case STX:
-			cpu.stx()
+			cpu.stx(opCode.addressingMode)
 		case STY:
-			cpu.sty()
+			cpu.sty(opCode.addressingMode)
 		case TAX:
 			cpu.tax()
 		case TAY:
