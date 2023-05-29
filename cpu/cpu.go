@@ -174,7 +174,7 @@ func (cpu CPU) branch(condition bool) {
 			cpu.programCounter += uint16(operand)
 		} else {
 			// 0x100 is 256
-			cpu.programCounter += (0x100 - uint16(operand))
+			cpu.programCounter += 0x100 - uint16(operand)
 		}
 	}
 }
@@ -568,6 +568,7 @@ func (cpu CPU) run() {
 	for {
 		var hexCode = cpu.memory[cpu.programCounter]
 		cpu.programCounter += 1
+		var programCounterBeforeOperation = cpu.programCounter
 		var opCode = matchHexCodeWithOpsCode(hexCode)
 		switch opCode.operation {
 		case ADC:
@@ -685,8 +686,10 @@ func (cpu CPU) run() {
 		default:
 			panic(fmt.Sprintf("operation %v is unsupported", opCode.operation))
 		}
-		// TODO : beware of not incrementing after jump or branching !!!
-		cpu.programCounter += opCode.bytes - 1
+		// No jump or branch has occurred
+		if programCounterBeforeOperation == cpu.programCounter {
+			cpu.programCounter += getNumberOfBytesReadForAddressingMode(opCode.addressingMode)
+		}
 	}
 }
 
