@@ -707,46 +707,45 @@ func printCPUState(cpu CPU, cpuStepInfos CPUStepInfos) {
 	case 2:
 		builder.WriteString(fmt.Sprintf("%X %X %X", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
 	case 1:
-		builder.WriteString(fmt.Sprintf("%X %X", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1)))
+		builder.WriteString(fmt.Sprintf("%X %X   ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1)))
 	case 0:
-		builder.WriteString(fmt.Sprintf("%X", cpuStepInfos.opHexCode))
+		builder.WriteString(fmt.Sprintf("%X      ", cpuStepInfos.opHexCode))
 	}
-	// TODO : beware of jump
 	// CPU opcode in assembly
 	builder.WriteString(fmt.Sprintf("%s ", cpuStepInfos.opCode.operation))
 	switch cpuStepInfos.opCode.addressingMode {
 	case Implied:
-		builder.WriteString(fmt.Sprintf(""))
+		builder.WriteString(fmt.Sprintf("                          "))
 	case Accumulator:
-		builder.WriteString(fmt.Sprintf("A"))
+		builder.WriteString(fmt.Sprintf("A                         "))
 	case Immediate:
-		builder.WriteString(fmt.Sprintf("#$%X", param1))
+		builder.WriteString(fmt.Sprintf("#$%X                      ", param1))
 	case Relative:
 		// Branching instruction
-		builder.WriteString(fmt.Sprintf("$%X", cpuStepInfos.operandAddress))
+		builder.WriteString(fmt.Sprintf("$%X                       ", cpuStepInfos.operandAddress))
 	case ZeroPage:
-		builder.WriteString(fmt.Sprintf("$%X = %X", param1, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("$%X = %X                  ", param1, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case ZeroPageX:
-		builder.WriteString(fmt.Sprintf("$%X,X @ %X = %X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("$%X,X @ %X = %X           ", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case ZeroPageY:
-		builder.WriteString(fmt.Sprintf("$%X,Y @ %X = %X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("$%X,Y @ %X = %X           ", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case Absolute:
 		if cpuStepInfos.opCode.operation == JMP {
-			builder.WriteString(fmt.Sprintf("$%X%X", param1, param2))
+			builder.WriteString(fmt.Sprintf("$%X%X                     ", param1, param2))
 		} else {
-			builder.WriteString(fmt.Sprintf("$%X%X = %X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
+			builder.WriteString(fmt.Sprintf("$%X%X = %X                ", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
 		}
 	case AbsoluteX:
-		builder.WriteString(fmt.Sprintf("$%X%X,X @ %X = %X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("$%X%X,X @ %X = %X         ", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case AbsoluteY:
-		builder.WriteString(fmt.Sprintf("$%X%X,Y @ %X = %X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("$%X%X,Y @ %X = %X         ", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case Indirect:
 		// JMP
-		builder.WriteString(fmt.Sprintf("($%X%X) = %X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("($%X%X) = %X              ", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case IndirectX:
-		builder.WriteString(fmt.Sprintf("($%X, X) @ %X = %X = %X", param1, param1+cpu.registerX, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("($%X,X) @ %X = %X = %X    ", param1, param1+cpu.registerX, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case IndirectY:
-		builder.WriteString(fmt.Sprintf("($%X),Y = %X @ %X = %X", param1, cpuStepInfos.operandAddress-uint16(cpu.registerY), cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		builder.WriteString(fmt.Sprintf("($%X),Y = %X @ %X = %X    ", param1, cpuStepInfos.operandAddress-uint16(cpu.registerY), cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	default:
 		panic(fmt.Sprintf("addressing mode %v is not supported for tracing", cpuStepInfos.opCode.addressingMode))
 	}
@@ -754,4 +753,6 @@ func printCPUState(cpu CPU, cpuStepInfos CPUStepInfos) {
 	// CPU Registers
 	builder.WriteString(fmt.Sprintf("A:%X X:%X Y:%X P:%X SP:%X", cpu.registerA, cpu.registerX, cpu.registerY, cpu.statusFlags, cpu.stackPointer))
 	// TODO : CPU and PPU cycles
+
+	fmt.Println(builder.String())
 }
