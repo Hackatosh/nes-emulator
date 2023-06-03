@@ -19,7 +19,7 @@ type Bus struct {
 
 func (bus Bus) MemoryRead(address uint16) uint8 {
 	var unmirroredAddress uint16
-	switch true {
+	switch {
 	case CPU_RAM_START <= address && address <= CPU_RAM_MIRRORS_END:
 		unmirroredAddress = address & 0b00000111_11111111
 	case PPU_REGISTERS_START <= address && address <= PPU_REGISTERS_MIRRORS_END:
@@ -33,7 +33,7 @@ func (bus Bus) MemoryRead(address uint16) uint8 {
 
 func (bus Bus) MemoryWrite(address uint16, data uint8) {
 	var unmirroredAddress uint16
-	switch true {
+	switch {
 	case CPU_RAM_START <= address && address <= CPU_RAM_MIRRORS_END:
 		unmirroredAddress = address & 0b00000111_11111111
 	case PPU_REGISTERS_START <= address && address <= PPU_REGISTERS_MIRRORS_END:
