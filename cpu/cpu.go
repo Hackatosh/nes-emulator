@@ -118,56 +118,52 @@ func (cpu CPU) pullStackU16() uint16 {
 }
 
 // This does not get the operand but the address of the operand, which will be the retrieved using memory read
-func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
+func (cpu CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint16) uint16 {
+	// Program counter is where the opCode is located
 	switch mode {
 	case Implied:
-		panic("trying to resolve implicit addressing mode")
+		return 0
 	case Accumulator:
-		panic("trying to resolve accumulator addressing mode")
+		return 0
 	case Immediate:
-		return cpu.programCounter
+		return opCodeProgramCounter + 1
 	case Relative:
-		var offset = cpu.memoryRead(cpu.programCounter)
+		var offset = cpu.memoryRead(opCodeProgramCounter + 1)
 		if offset <= 0x7f {
-			return cpu.programCounter + uint16(offset) + 1
+			return opCodeProgramCounter + uint16(offset) + 1
 		} else {
-			return cpu.programCounter + 0x100 - uint16(offset) + 1
+			return opCodeProgramCounter + 0x100 - uint16(offset) + 1
 		}
 	case ZeroPage:
 		// It's only a 8 bits address with Zero Page, so you can only get an address in the first 256 memory cells
 		// But it's faster !
-		return uint16(cpu.memoryRead(cpu.programCounter))
+		return uint16(cpu.memoryRead(opCodeProgramCounter + 1))
 	case ZeroPageX:
-		var pos = cpu.memoryRead(cpu.programCounter)
+		var pos = cpu.memoryRead(opCodeProgramCounter + 1)
 		return uint16(pos + cpu.registerX)
 	case ZeroPageY:
-		var pos = cpu.memoryRead(cpu.programCounter)
+		var pos = cpu.memoryRead(opCodeProgramCounter + 1)
 		return uint16(pos + cpu.registerY)
 	case Absolute:
-		return cpu.memoryReadU16(cpu.programCounter)
+		return cpu.memoryReadU16(opCodeProgramCounter + 1)
 	case AbsoluteX:
-		var pos = cpu.memoryReadU16(cpu.programCounter)
+		var pos = cpu.memoryReadU16(opCodeProgramCounter + 1)
 		return pos + uint16(cpu.registerX)
 	case AbsoluteY:
-		var pos = cpu.memoryReadU16(cpu.programCounter)
+		var pos = cpu.memoryReadU16(opCodeProgramCounter + 1)
 		return pos + uint16(cpu.registerY)
 	case Indirect:
-		var ref = cpu.memoryReadU16(cpu.programCounter)
+		var ref = cpu.memoryReadU16(opCodeProgramCounter + 1)
 		return cpu.memoryReadU16(ref)
 	case IndirectX:
-		var base = cpu.memoryRead(cpu.programCounter)
+		var base = cpu.memoryRead(opCodeProgramCounter + 1)
 		return cpu.memoryReadU16(uint16(base + cpu.registerX))
 	case IndirectY:
-		var ref = cpu.memoryReadU16(cpu.programCounter)
+		var ref = cpu.memoryReadU16(opCodeProgramCounter + 1)
 		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
 	default:
 		panic(fmt.Sprintf("addressing mode %v is not supported", mode))
 	}
-}
-
-func (cpu CPU) getOperandDirectly(mode AddressingMode) uint8 {
-	var operandAddress = cpu.getOperandAddress(mode)
-	return cpu.memoryRead(operandAddress)
 }
 
 // Helpers for Ops Code operations
@@ -184,9 +180,9 @@ func (cpu CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
 	return result, hasCarry, hasOverflow
 }
 
-func (cpu CPU) branch(condition bool) {
+func (cpu CPU) branch(cpuStepInfos CPUStepInfos, condition bool) {
 	if condition {
-		var operand = cpu.getOperandDirectly(Relative)
+		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 		if !isNegative(operand) {
 			cpu.programCounter += uint16(operand)
 		} else {
@@ -198,8 +194,8 @@ func (cpu CPU) branch(condition bool) {
 
 // Ops code operations
 
-func (cpu CPU) adc(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) adc(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, operand, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
 	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
@@ -207,267 +203,259 @@ func (cpu CPU) adc(addressingMode AddressingMode) {
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) and(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) and(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = cpu.registerA & operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) asl(addressingMode AddressingMode) {
-	if addressingMode == Accumulator {
+func (cpu CPU) asl(cpuStepInfos CPUStepInfos) {
+	if cpuStepInfos.opCode.addressingMode == Accumulator {
 		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b1000_0000 != 0)
 		cpu.registerA = cpu.registerA << 1
 		cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 	} else {
-		var operandAddress = cpu.getOperandAddress(addressingMode)
-		var operand = cpu.memoryRead(operandAddress)
+		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 		cpu.setFlagToValue(CARRY_FLAG, operand&0b1000_0000 != 0)
 		var result = operand << 1
-		cpu.memoryWrite(operandAddress, result)
+		cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 		cpu.setZeroFlagAndNegativeFlagForResult(result)
 	}
 }
 
-func (cpu CPU) bcc() {
-	cpu.branch(!cpu.isFlagSet(CARRY_FLAG))
+func (cpu CPU) bcc(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, !cpu.isFlagSet(CARRY_FLAG))
 }
 
-func (cpu CPU) bcs() {
-	cpu.branch(cpu.isFlagSet(CARRY_FLAG))
+func (cpu CPU) bcs(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, cpu.isFlagSet(CARRY_FLAG))
 }
 
-func (cpu CPU) beq() {
-	cpu.branch(cpu.isFlagSet(ZERO_FLAG))
+func (cpu CPU) beq(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, cpu.isFlagSet(ZERO_FLAG))
 }
 
-func (cpu CPU) bit(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) bit(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand & cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 	cpu.setFlagToValue(OVERFLOW_FLAG, result&0b0100_0000 != 0)
 }
 
-func (cpu CPU) bmi() {
-	cpu.branch(cpu.isFlagSet(NEGATIVE_FLAG))
+func (cpu CPU) bmi(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, cpu.isFlagSet(NEGATIVE_FLAG))
 }
 
-func (cpu CPU) bne() {
-	cpu.branch(!cpu.isFlagSet(ZERO_FLAG))
+func (cpu CPU) bne(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, !cpu.isFlagSet(ZERO_FLAG))
 }
 
-func (cpu CPU) bpl() {
-	cpu.branch(!cpu.isFlagSet(NEGATIVE_FLAG))
+func (cpu CPU) bpl(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, !cpu.isFlagSet(NEGATIVE_FLAG))
 }
 
-func (cpu CPU) bvc() {
-	cpu.branch(!cpu.isFlagSet(OVERFLOW_FLAG))
+func (cpu CPU) bvc(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, !cpu.isFlagSet(OVERFLOW_FLAG))
 }
 
-func (cpu CPU) bvs() {
-	cpu.branch(cpu.isFlagSet(OVERFLOW_FLAG))
+func (cpu CPU) bvs(cpuStepInfos CPUStepInfos) {
+	cpu.branch(cpuStepInfos, cpu.isFlagSet(OVERFLOW_FLAG))
 }
 
-func (cpu CPU) clc() {
+func (cpu CPU) clc(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(CARRY_FLAG, false)
 }
 
-func (cpu CPU) cld() {
+func (cpu CPU) cld(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(DECIMAL_FLAG, false)
 }
 
-func (cpu CPU) cli() {
+func (cpu CPU) cli(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(INTERRUPT_DISABLE_FLAG, false)
 }
 
-func (cpu CPU) clv() {
+func (cpu CPU) clv(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(OVERFLOW_FLAG, false)
 }
 
-func (cpu CPU) compare(addressingMode AddressingMode, compareWith uint8) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) compare(cpuStepInfos CPUStepInfos, compareWith uint8) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = compareWith - operand
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 	cpu.setFlagToValue(CARRY_FLAG, compareWith > operand)
 }
 
-func (cpu CPU) cmp(addressingMode AddressingMode) {
-	cpu.compare(addressingMode, cpu.registerA)
+func (cpu CPU) cmp(cpuStepInfos CPUStepInfos) {
+	cpu.compare(cpuStepInfos, cpu.registerA)
 }
 
-func (cpu CPU) cpx(addressingMode AddressingMode) {
-	cpu.compare(addressingMode, cpu.registerX)
+func (cpu CPU) cpx(cpuStepInfos CPUStepInfos) {
+	cpu.compare(cpuStepInfos, cpu.registerX)
 }
 
-func (cpu CPU) cpy(addressingMode AddressingMode) {
-	cpu.compare(addressingMode, cpu.registerY)
+func (cpu CPU) cpy(cpuStepInfos CPUStepInfos) {
+	cpu.compare(cpuStepInfos, cpu.registerY)
 }
 
-func (cpu CPU) dec(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var operand = cpu.memoryRead(operandAddress)
+func (cpu CPU) dec(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand - 1
-	cpu.memoryWrite(operandAddress, result)
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 }
 
-func (cpu CPU) dex() {
+func (cpu CPU) dex(cpuStepInfos CPUStepInfos) {
 	cpu.registerX -= 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) dey() {
+func (cpu CPU) dey(cpuStepInfos CPUStepInfos) {
 	cpu.registerY -= 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) eor(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) eor(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = cpu.registerA ^ operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) inc(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	var operand = cpu.memoryRead(operandAddress)
+func (cpu CPU) inc(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand + 1
-	cpu.memoryWrite(operandAddress, result)
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 }
 
-func (cpu CPU) inx() {
+func (cpu CPU) inx(cpuStepInfos CPUStepInfos) {
 	cpu.registerX += 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) iny() {
+func (cpu CPU) iny(cpuStepInfos CPUStepInfos) {
 	cpu.registerY += 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) jmp(addressingMode AddressingMode) {
+func (cpu CPU) jmp(cpuStepInfos CPUStepInfos) {
 	// TODO : some shady shit is done here in the tutorial, wtf ??
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.programCounter = operandAddress
+	cpu.programCounter = cpuStepInfos.operandAddress
 }
 
-func (cpu CPU) jsr(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
+func (cpu CPU) jsr(cpuStepInfos CPUStepInfos) {
 	// +2 is for absolute read
 	cpu.pushStackU16(cpu.programCounter + 2 - 1)
-	cpu.programCounter = operandAddress
+	cpu.programCounter = cpuStepInfos.operandAddress
 }
 
-func (cpu CPU) lda(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) lda(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) ldx(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) ldx(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerX = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) ldy(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) ldy(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerY = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) lsr(addressingMode AddressingMode) {
-	if addressingMode == Accumulator {
+func (cpu CPU) lsr(cpuStepInfos CPUStepInfos) {
+	if cpuStepInfos.opCode.addressingMode == Accumulator {
 		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
 		cpu.registerA = cpu.registerA >> 1
 		cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 	} else {
-		var operandAddress = cpu.getOperandAddress(addressingMode)
-		var operand = cpu.memoryRead(operandAddress)
+		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 		cpu.setFlagToValue(CARRY_FLAG, operand&0b0000_0001 != 0)
 		var result = operand >> 1
-		cpu.memoryWrite(operandAddress, result)
+		cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 		cpu.setZeroFlagAndNegativeFlagForResult(result)
 	}
 }
 
-func (cpu CPU) nop() {}
+func (cpu CPU) nop(cpuStepInfos CPUStepInfos) {}
 
-func (cpu CPU) ora(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) ora(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = cpu.registerA | operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) pha() {
+func (cpu CPU) pha(cpuStepInfos CPUStepInfos) {
 	cpu.pushStack(cpu.registerA)
 }
 
-func (cpu CPU) php() {
+func (cpu CPU) php(cpuStepInfos CPUStepInfos) {
 	cpu.pushStack(cpu.statusFlags)
 	cpu.setFlagToValue(BREAK_FLAG, false)
 	cpu.setFlagToValue(BREAK_2_FLAG, true)
 }
 
-func (cpu CPU) pla() {
+func (cpu CPU) pla(cpuStepInfos CPUStepInfos) {
 	cpu.registerA = cpu.pullStack()
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) plp() {
+func (cpu CPU) plp(cpuStepInfos CPUStepInfos) {
 	cpu.statusFlags = cpu.pullStack() | BREAK_FLAG | BREAK_2_FLAG
 }
 
-func (cpu CPU) rol(addressingMode AddressingMode) {
+func (cpu CPU) rol(cpuStepInfos CPUStepInfos) {
 	var carryMask uint8 = 0b0000_0000
 	if cpu.isFlagSet(CARRY_FLAG) {
 		carryMask = 0b0000_0001
 	}
-	if addressingMode == Accumulator {
+	if cpuStepInfos.opCode.addressingMode == Accumulator {
 		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b1000_0000 != 0)
 		cpu.registerA = (cpu.registerA << 1) | carryMask
 		cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 	} else {
-		var operandAddress = cpu.getOperandAddress(addressingMode)
-		var operand = cpu.memoryRead(operandAddress)
+		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 		cpu.setFlagToValue(CARRY_FLAG, operand&0b1000_0000 != 0)
 		var result = operand<<1 | carryMask
-		cpu.memoryWrite(operandAddress, result)
+		cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 		cpu.setZeroFlagAndNegativeFlagForResult(result)
 	}
 }
 
-func (cpu CPU) ror(addressingMode AddressingMode) {
+func (cpu CPU) ror(cpuStepInfos CPUStepInfos) {
 	var carryMask uint8 = 0b0000_0000
 	if cpu.isFlagSet(CARRY_FLAG) {
 		carryMask = 0b1000_0000
 	}
-	if addressingMode == Accumulator {
+	if cpuStepInfos.opCode.addressingMode == Accumulator {
 		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
 		cpu.registerA = (cpu.registerA >> 1) | carryMask
 		cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 	} else {
-		var operandAddress = cpu.getOperandAddress(addressingMode)
-		var operand = cpu.memoryRead(operandAddress)
+		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 		cpu.setFlagToValue(CARRY_FLAG, operand&0b0000_0001 != 0)
 		var result = operand>>1 | carryMask
-		cpu.memoryWrite(operandAddress, result)
+		cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 		cpu.setZeroFlagAndNegativeFlagForResult(result)
 	}
 }
 
-func (cpu CPU) rti() {
+func (cpu CPU) rti(cpuStepInfos CPUStepInfos) {
 	cpu.statusFlags = cpu.pullStack()
 	cpu.setFlagToValue(BREAK_FLAG, false)
 	cpu.setFlagToValue(BREAK_2_FLAG, true)
 	cpu.programCounter = cpu.pullStackU16()
 }
 
-func (cpu CPU) rts() {
+func (cpu CPU) rts(cpuStepInfos CPUStepInfos) {
 	cpu.programCounter = cpu.pullStackU16() + 1
 }
 
-func (cpu CPU) sbc(addressingMode AddressingMode) {
-	var operand = cpu.getOperandDirectly(addressingMode)
+func (cpu CPU) sbc(cpuStepInfos CPUStepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
 	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
@@ -475,58 +463,55 @@ func (cpu CPU) sbc(addressingMode AddressingMode) {
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) sec() {
+func (cpu CPU) sec(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(CARRY_FLAG, true)
 }
 
-func (cpu CPU) sed() {
+func (cpu CPU) sed(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(DECIMAL_FLAG, true)
 }
 
-func (cpu CPU) sei() {
+func (cpu CPU) sei(cpuStepInfos CPUStepInfos) {
 	cpu.setFlagToValue(INTERRUPT_DISABLE_FLAG, true)
 }
 
-func (cpu CPU) sta(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.memoryWrite(operandAddress, cpu.registerA)
+func (cpu CPU) sta(cpuStepInfos CPUStepInfos) {
+	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerA)
 }
 
-func (cpu CPU) stx(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.memoryWrite(operandAddress, cpu.registerX)
+func (cpu CPU) stx(cpuStepInfos CPUStepInfos) {
+	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerX)
 }
 
-func (cpu CPU) sty(addressingMode AddressingMode) {
-	var operandAddress = cpu.getOperandAddress(addressingMode)
-	cpu.memoryWrite(operandAddress, cpu.registerY)
+func (cpu CPU) sty(cpuStepInfos CPUStepInfos) {
+	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerY)
 }
 
-func (cpu CPU) tax() {
+func (cpu CPU) tax(cpuStepInfos CPUStepInfos) {
 	cpu.registerX = cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) tay() {
+func (cpu CPU) tay(cpuStepInfos CPUStepInfos) {
 	cpu.registerY = cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) tsx() {
+func (cpu CPU) tsx(cpuStepInfos CPUStepInfos) {
 	cpu.registerX = cpu.stackPointer
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) txa() {
+func (cpu CPU) txa(cpuStepInfos CPUStepInfos) {
 	cpu.registerA = cpu.registerX
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) txs() {
+func (cpu CPU) txs(cpuStepInfos CPUStepInfos) {
 	cpu.stackPointer = cpu.registerX
 }
 
-func (cpu CPU) tya() {
+func (cpu CPU) tya(cpuStepInfos CPUStepInfos) {
 	cpu.registerA = cpu.registerY
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
@@ -560,125 +545,136 @@ func (cpu CPU) reset() {
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
+type CPUStepInfos struct {
+	opHexCode      uint8
+	opCode         OpCode
+	operandAddress uint16
+}
+
 func (cpu CPU) run() {
 	for {
-		var hexCode = cpu.memoryRead(cpu.programCounter)
-		cpu.programCounter += 1
+		var opHexCode = cpu.memoryRead(cpu.programCounter)
 		var programCounterBeforeOperation = cpu.programCounter
-		var opCode = matchHexCodeWithOpsCode(hexCode)
+		var opCode = matchOpHexCodeWithOpCode(opHexCode)
+		var operandAddress = cpu.getOperandAddress(opCode.addressingMode, cpu.programCounter)
+		var cpuStepInfos = CPUStepInfos{
+			opHexCode:      opHexCode,
+			opCode:         opCode,
+			operandAddress: operandAddress,
+		}
 		switch opCode.operation {
 		case ADC:
-			cpu.adc(opCode.addressingMode)
+			cpu.adc(cpuStepInfos)
 		case AND:
-			cpu.and(opCode.addressingMode)
+			cpu.and(cpuStepInfos)
 		case ASL:
-			cpu.asl(opCode.addressingMode)
+			cpu.asl(cpuStepInfos)
 		case BCC:
-			cpu.bcc()
+			cpu.bcc(cpuStepInfos)
 		case BCS:
-			cpu.bcs()
+			cpu.bcs(cpuStepInfos)
 		case BEQ:
-			cpu.beq()
+			cpu.beq(cpuStepInfos)
 		case BIT:
-			cpu.bit(opCode.addressingMode)
+			cpu.bit(cpuStepInfos)
 		case BMI:
-			cpu.bmi()
+			cpu.bmi(cpuStepInfos)
 		case BNE:
-			cpu.bne()
+			cpu.bne(cpuStepInfos)
 		case BPL:
-			cpu.bpl()
+			cpu.bpl(cpuStepInfos)
 		case BRK:
 			return
 		case BVS:
-			cpu.bvs()
+			cpu.bvs(cpuStepInfos)
 		case BVC:
-			cpu.bvc()
+			cpu.bvc(cpuStepInfos)
 		case CLC:
-			cpu.clc()
+			cpu.clc(cpuStepInfos)
 		case CLD:
-			cpu.cld()
+			cpu.cld(cpuStepInfos)
 		case CLI:
-			cpu.cli()
+			cpu.cli(cpuStepInfos)
 		case CLV:
-			cpu.clv()
+			cpu.clv(cpuStepInfos)
 		case CMP:
-			cpu.cmp(opCode.addressingMode)
+			cpu.cmp(cpuStepInfos)
 		case CPX:
-			cpu.cpx(opCode.addressingMode)
+			cpu.cpx(cpuStepInfos)
 		case CPY:
-			cpu.cpy(opCode.addressingMode)
+			cpu.cpy(cpuStepInfos)
 		case DEC:
-			cpu.dec(opCode.addressingMode)
+			cpu.dec(cpuStepInfos)
 		case DEX:
-			cpu.dex()
+			cpu.dex(cpuStepInfos)
 		case DEY:
-			cpu.dey()
+			cpu.dey(cpuStepInfos)
 		case EOR:
-			cpu.eor(opCode.addressingMode)
+			cpu.eor(cpuStepInfos)
 		case INC:
-			cpu.inc(opCode.addressingMode)
+			cpu.inc(cpuStepInfos)
 		case INX:
-			cpu.inx()
+			cpu.inx(cpuStepInfos)
 		case INY:
-			cpu.iny()
+			cpu.iny(cpuStepInfos)
 		case JMP:
-			cpu.jmp(opCode.addressingMode)
+			cpu.jmp(cpuStepInfos)
 		case JSR:
-			cpu.jsr(opCode.addressingMode)
+			cpu.jsr(cpuStepInfos)
 		case LDA:
-			cpu.lda(opCode.addressingMode)
+			cpu.lda(cpuStepInfos)
 		case LDX:
-			cpu.ldx(opCode.addressingMode)
+			cpu.ldx(cpuStepInfos)
 		case LDY:
-			cpu.ldy(opCode.addressingMode)
+			cpu.ldy(cpuStepInfos)
 		case LSR:
-			cpu.lsr(opCode.addressingMode)
+			cpu.lsr(cpuStepInfos)
 		case NOP:
-			cpu.nop()
+			cpu.nop(cpuStepInfos)
 		case ORA:
-			cpu.ora(opCode.addressingMode)
+			cpu.ora(cpuStepInfos)
 		case PHA:
-			cpu.pha()
+			cpu.pha(cpuStepInfos)
 		case PHP:
-			cpu.php()
+			cpu.php(cpuStepInfos)
 		case PLA:
-			cpu.pla()
+			cpu.pla(cpuStepInfos)
 		case PLP:
-			cpu.plp()
+			cpu.plp(cpuStepInfos)
 		case ROL:
-			cpu.rol(opCode.addressingMode)
+			cpu.rol(cpuStepInfos)
 		case ROR:
-			cpu.ror(opCode.addressingMode)
+			cpu.ror(cpuStepInfos)
 		case RTI:
-			cpu.rti()
+			cpu.rti(cpuStepInfos)
 		case RTS:
-			cpu.rts()
+			cpu.rts(cpuStepInfos)
 		case SBC:
-			cpu.sbc(opCode.addressingMode)
+			cpu.sbc(cpuStepInfos)
 		case SEC:
-			cpu.sec()
+			cpu.sec(cpuStepInfos)
 		case SED:
-			cpu.sed()
+			cpu.sed(cpuStepInfos)
 		case SEI:
-			cpu.sei()
+			cpu.sei(cpuStepInfos)
 		case STA:
-			cpu.sta(opCode.addressingMode)
+			cpu.sta(cpuStepInfos)
 		case STX:
-			cpu.stx(opCode.addressingMode)
+			cpu.stx(cpuStepInfos)
 		case STY:
-			cpu.sty(opCode.addressingMode)
+			cpu.sty(cpuStepInfos)
 		case TAX:
-			cpu.tax()
+			cpu.tax(cpuStepInfos)
 		case TAY:
-			cpu.tay()
+			cpu.tay(cpuStepInfos)
 		case TSX:
-			cpu.tsx()
+			cpu.tsx(cpuStepInfos)
 		case TXA:
-			cpu.txa()
+			cpu.txa(cpuStepInfos)
 		case TXS:
-			cpu.txs()
+			cpu.txs(cpuStepInfos)
 		case TYA:
-			cpu.tya()
+			cpu.tya(cpuStepInfos)
 		default:
 			panic(fmt.Sprintf("operation %v is unsupported", opCode.operation))
 		}
@@ -696,103 +692,63 @@ func (cpu CPU) loadAndRUn(program []uint8) {
 }
 
 // Must be run at the beginning of the loop
-func printCPUState(cpu CPU) {
+func printCPUState(cpu CPU, cpuStepInfos CPUStepInfos) {
 	var builder = strings.Builder{}
+	var param1 = cpu.memoryRead(cpu.programCounter + 1)
+	var param2 = cpu.memoryRead(cpu.programCounter + 2)
+	var bytesReadForAddressing = getNumberOfBytesReadForAddressingMode(cpuStepInfos.opCode.addressingMode)
 
 	// Program Counter
 	builder.WriteString(fmt.Sprintf("%X", cpu.programCounter))
 
 	// CPU opcode
-	var hexCode = cpu.memoryRead(cpu.programCounter)
-	var opCode = matchHexCodeWithOpsCode(hexCode)
-	var bytesReadForAddressing = getNumberOfBytesReadForAddressingMode(opCode.addressingMode)
+
 	switch bytesReadForAddressing {
 	case 2:
-		builder.WriteString(fmt.Sprintf("%X %X %X", hexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
+		builder.WriteString(fmt.Sprintf("%X %X %X", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
 	case 1:
-		builder.WriteString(fmt.Sprintf("%X %X", hexCode, cpu.memoryRead(cpu.programCounter+1)))
+		builder.WriteString(fmt.Sprintf("%X %X", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1)))
 	case 0:
-		builder.WriteString(fmt.Sprintf("%X", hexCode))
+		builder.WriteString(fmt.Sprintf("%X", cpuStepInfos.opHexCode))
 	}
-
+	// TODO : beware of jump
 	// CPU opcode in assembly
-	builder.WriteString(fmt.Sprintf("%s", opCode.operation))
-	switch opCode.addressingMode {
+	builder.WriteString(fmt.Sprintf("%s ", cpuStepInfos.opCode.operation))
+	switch cpuStepInfos.opCode.addressingMode {
 	case Implied:
 		builder.WriteString(fmt.Sprintf(""))
 	case Accumulator:
 		builder.WriteString(fmt.Sprintf("A"))
 	case Immediate:
-		builder.WriteString(fmt.Sprintf("#$%X", cpu.memoryRead(cpu.programCounter+1)))
+		builder.WriteString(fmt.Sprintf("#$%X", param1))
 	case Relative:
-		builder.WriteString(fmt.Sprintf("$%X%X", cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
+		// Branching instruction
+		builder.WriteString(fmt.Sprintf("$%X", cpuStepInfos.operandAddress))
 	case ZeroPage:
-		builder.WriteString(fmt.Sprintf("$%X", cpu.memoryRead(cpu.programCounter+1)))
+		builder.WriteString(fmt.Sprintf("$%X = %X", param1, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case ZeroPageX:
-		var pos = cpu.memoryRead(cpu.programCounter)
-		return uint16(pos + cpu.registerX)
+		builder.WriteString(fmt.Sprintf("$%X,X @ %X = %X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case ZeroPageY:
-		var pos = cpu.memoryRead(cpu.programCounter)
-		return uint16(pos + cpu.registerY)
+		builder.WriteString(fmt.Sprintf("$%X,Y @ %X = %X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case Absolute:
-		return cpu.memoryReadU16(cpu.programCounter)
+		if cpuStepInfos.opCode.operation == JMP {
+			builder.WriteString(fmt.Sprintf("$%X%X", param1, param2))
+		} else {
+			builder.WriteString(fmt.Sprintf("$%X%X = %X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		}
 	case AbsoluteX:
-		var pos = cpu.memoryReadU16(cpu.programCounter)
-		return pos + uint16(cpu.registerX)
+		builder.WriteString(fmt.Sprintf("$%X%X,X @ %X = %X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case AbsoluteY:
-		var pos = cpu.memoryReadU16(cpu.programCounter)
-		return pos + uint16(cpu.registerY)
+		builder.WriteString(fmt.Sprintf("$%X%X,Y @ %X = %X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case Indirect:
-		var ref = cpu.memoryReadU16(cpu.programCounter)
-		return cpu.memoryReadU16(ref)
+		// JMP
+		builder.WriteString(fmt.Sprintf("($%X%X) = %X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case IndirectX:
-		var base = cpu.memoryRead(cpu.programCounter)
-		return cpu.memoryReadU16(uint16(base + cpu.registerX))
+		builder.WriteString(fmt.Sprintf("($%X, X) @ %X = %X = %X", param1, param1+cpu.registerX, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	case IndirectY:
-		var ref = cpu.memoryReadU16(cpu.programCounter)
-		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
+		builder.WriteString(fmt.Sprintf("($%X),Y = %X @ %X = %X", param1, cpuStepInfos.operandAddress-uint16(cpu.registerY), cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
 	default:
-		panic(fmt.Sprintf("addressing mode %v is not supported for tracing", opCode.addressingMode))
-	}
-
-	// Resolution of operand
-	switch opCode.addressingMode {
-	case Implied:
-		builder.WriteString(fmt.Sprintf(""))
-	case Accumulator:
-		builder.WriteString(fmt.Sprintf(""))
-	case Immediate:
-		builder.WriteString(fmt.Sprintf(""))
-	case Relative:
-		builder.WriteString(fmt.Sprintf(""))
-	case ZeroPage:
-		builder.WriteString(fmt.Sprintf("$%X", cpu.getOperandAddress()cpu.memoryRead(cpu.programCounter+1)))
-		return uint16(cpu.memoryRead(cpu.programCounter))
-	case ZeroPageX:
-		var pos = cpu.memoryRead(cpu.programCounter)
-		return uint16(pos + cpu.registerX)
-	case ZeroPageY:
-		var pos = cpu.memoryRead(cpu.programCounter)
-		return uint16(pos + cpu.registerY)
-	case Absolute:
-		return cpu.memoryReadU16(cpu.programCounter)
-	case AbsoluteX:
-		var pos = cpu.memoryReadU16(cpu.programCounter)
-		return pos + uint16(cpu.registerX)
-	case AbsoluteY:
-		var pos = cpu.memoryReadU16(cpu.programCounter)
-		return pos + uint16(cpu.registerY)
-	case Indirect:
-		var ref = cpu.memoryReadU16(cpu.programCounter)
-		return cpu.memoryReadU16(ref)
-	case IndirectX:
-		var base = cpu.memoryRead(cpu.programCounter)
-		return cpu.memoryReadU16(uint16(base + cpu.registerX))
-	case IndirectY:
-		var ref = cpu.memoryReadU16(cpu.programCounter)
-		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
-	default:
-		panic(fmt.Sprintf("addressing mode %v is not supported for tracing (operand)", opCode.addressingMode))
+		panic(fmt.Sprintf("addressing mode %v is not supported for tracing", cpuStepInfos.opCode.addressingMode))
 	}
 
 	// CPU Registers

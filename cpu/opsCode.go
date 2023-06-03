@@ -25,11 +25,11 @@ const (
 func getNumberOfBytesReadForAddressingMode(addressingMode AddressingMode) uint16 {
 	switch addressingMode {
 	case Implied, Accumulator:
-		return 0
-	case Relative, Immediate, ZeroPage, ZeroPageX, ZeroPageY, Indirect, IndirectX, IndirectY:
 		return 1
-	case Absolute, AbsoluteX, AbsoluteY:
+	case Relative, Immediate, ZeroPage, ZeroPageX, ZeroPageY, Indirect, IndirectX, IndirectY:
 		return 2
+	case Absolute, AbsoluteX, AbsoluteY:
+		return 3
 	default:
 		panic(fmt.Sprintf("addressing mode %v is unsupported for get number of bytes read"))
 	}
@@ -314,7 +314,7 @@ var hexToOpsCode = map[uint8]OpCode{
 	0x98: {operation: TYA, addressingMode: Implied, cycles: 2},
 }
 
-func matchHexCodeWithOpsCode(hexCode uint8) OpCode {
+func matchOpHexCodeWithOpCode(hexCode uint8) OpCode {
 	var opsCode, ok = hexToOpsCode[hexCode]
 	if !ok {
 		panic(fmt.Sprintf("hex code %v is unsupported", hexCode))
