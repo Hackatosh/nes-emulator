@@ -3,6 +3,7 @@ package cpu
 import (
 	"encoding/binary"
 	"fmt"
+	"nes-emulator/bus"
 )
 
 const STACK_BASE uint16 = 0x0100
@@ -30,7 +31,7 @@ type CPU struct {
 	// |+-------- Overflow
 	// +--------- Negative
 	programCounter uint16
-	memory         [0xffff]uint8
+	bus            bus.Bus
 }
 
 // Generic helpers
@@ -74,19 +75,19 @@ func (cpu CPU) setZeroFlagAndNegativeFlagForResult(result uint8) {
 // Memory helpers
 
 func (cpu CPU) memoryRead(address uint16) uint8 {
-	return cpu.memory[address]
+	return cpu.bus.MemoryRead(address)
 }
 
 func (cpu CPU) memoryWrite(address uint16, data uint8) {
-	cpu.memory[address] = data
+	cpu.bus.MemoryWrite(address, data)
 }
 
 func (cpu CPU) memoryReadU16(address uint16) uint16 {
-	return binary.LittleEndian.Uint16(cpu.memory[address : address+1])
+	return cpu.bus.MemoryReadU16(address)
 }
 
 func (cpu CPU) memoryWriteU16(address uint16, data uint16) {
-	binary.LittleEndian.PutUint16(cpu.memory[address:address+1], data)
+	cpu.bus.MemoryWriteU16(address, data)
 }
 
 // Stack helpers
@@ -526,8 +527,21 @@ func (cpu CPU) tya() {
 
 // Load program and reset CPU
 
-func (cpu CPU) load(program []uint8) {
-	copy(cpu.memory[0x8000:0xFFFF], program)
+func NewCPU() CPU {
+	cpu := CPU{
+		registerA:      0,
+		registerX:      0,
+		registerY:      0,
+		statusFlags:    0b00100100,
+		stackPointer:   STACK_RESET,
+		programCounter: 0,
+		bus:            bus.NewBus(),
+	}
+	return cpu
+}
+
+func (cpu CPU) loadProgram(program []uint8) {
+	cpu.bus.LoadProgram(program)
 	cpu.memoryWriteU16(0xFFFC, 0x8000)
 }
 
@@ -535,14 +549,14 @@ func (cpu CPU) reset() {
 	cpu.registerA = 0
 	cpu.registerX = 0
 	cpu.registerY = 0
-	cpu.statusFlags = 0
+	cpu.statusFlags = 0b00100100
 	cpu.stackPointer = STACK_RESET
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
 func (cpu CPU) run() {
 	for {
-		var hexCode = cpu.memory[cpu.programCounter]
+		var hexCode = cpu.memoryRead(cpu.programCounter)
 		cpu.programCounter += 1
 		var programCounterBeforeOperation = cpu.programCounter
 		var opCode = matchHexCodeWithOpsCode(hexCode)
@@ -670,7 +684,7 @@ func (cpu CPU) run() {
 }
 
 func (cpu CPU) loadAndRUn(program []uint8) {
-	cpu.load(program)
+	cpu.loadProgram(program)
 	cpu.reset()
 	cpu.run()
 }
