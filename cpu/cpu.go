@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"nes-emulator/bus"
+	"strings"
 )
 
 const STACK_BASE uint16 = 0x0100
@@ -126,7 +127,12 @@ func (cpu CPU) getOperandAddress(mode AddressingMode) uint16 {
 	case Immediate:
 		return cpu.programCounter
 	case Relative:
-		return cpu.programCounter
+		var offset = cpu.memoryRead(cpu.programCounter)
+		if offset <= 0x7f {
+			return cpu.programCounter + uint16(offset) + 1
+		} else {
+			return cpu.programCounter + 0x100 - uint16(offset) + 1
+		}
 	case ZeroPage:
 		// It's only a 8 bits address with Zero Page, so you can only get an address in the first 256 memory cells
 		// But it's faster !
@@ -687,4 +693,109 @@ func (cpu CPU) loadAndRUn(program []uint8) {
 	cpu.loadProgram(program)
 	cpu.reset()
 	cpu.run()
+}
+
+// Must be run at the beginning of the loop
+func printCPUState(cpu CPU) {
+	var builder = strings.Builder{}
+
+	// Program Counter
+	builder.WriteString(fmt.Sprintf("%X", cpu.programCounter))
+
+	// CPU opcode
+	var hexCode = cpu.memoryRead(cpu.programCounter)
+	var opCode = matchHexCodeWithOpsCode(hexCode)
+	var bytesReadForAddressing = getNumberOfBytesReadForAddressingMode(opCode.addressingMode)
+	switch bytesReadForAddressing {
+	case 2:
+		builder.WriteString(fmt.Sprintf("%X %X %X", hexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
+	case 1:
+		builder.WriteString(fmt.Sprintf("%X %X", hexCode, cpu.memoryRead(cpu.programCounter+1)))
+	case 0:
+		builder.WriteString(fmt.Sprintf("%X", hexCode))
+	}
+
+	// CPU opcode in assembly
+	builder.WriteString(fmt.Sprintf("%s", opCode.operation))
+	switch opCode.addressingMode {
+	case Implied:
+		builder.WriteString(fmt.Sprintf(""))
+	case Accumulator:
+		builder.WriteString(fmt.Sprintf("A"))
+	case Immediate:
+		builder.WriteString(fmt.Sprintf("#$%X", cpu.memoryRead(cpu.programCounter+1)))
+	case Relative:
+		builder.WriteString(fmt.Sprintf("$%X%X", cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
+	case ZeroPage:
+		builder.WriteString(fmt.Sprintf("$%X", cpu.memoryRead(cpu.programCounter+1)))
+	case ZeroPageX:
+		var pos = cpu.memoryRead(cpu.programCounter)
+		return uint16(pos + cpu.registerX)
+	case ZeroPageY:
+		var pos = cpu.memoryRead(cpu.programCounter)
+		return uint16(pos + cpu.registerY)
+	case Absolute:
+		return cpu.memoryReadU16(cpu.programCounter)
+	case AbsoluteX:
+		var pos = cpu.memoryReadU16(cpu.programCounter)
+		return pos + uint16(cpu.registerX)
+	case AbsoluteY:
+		var pos = cpu.memoryReadU16(cpu.programCounter)
+		return pos + uint16(cpu.registerY)
+	case Indirect:
+		var ref = cpu.memoryReadU16(cpu.programCounter)
+		return cpu.memoryReadU16(ref)
+	case IndirectX:
+		var base = cpu.memoryRead(cpu.programCounter)
+		return cpu.memoryReadU16(uint16(base + cpu.registerX))
+	case IndirectY:
+		var ref = cpu.memoryReadU16(cpu.programCounter)
+		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
+	default:
+		panic(fmt.Sprintf("addressing mode %v is not supported for tracing", opCode.addressingMode))
+	}
+
+	// Resolution of operand
+	switch opCode.addressingMode {
+	case Implied:
+		builder.WriteString(fmt.Sprintf(""))
+	case Accumulator:
+		builder.WriteString(fmt.Sprintf(""))
+	case Immediate:
+		builder.WriteString(fmt.Sprintf(""))
+	case Relative:
+		builder.WriteString(fmt.Sprintf(""))
+	case ZeroPage:
+		builder.WriteString(fmt.Sprintf("$%X", cpu.getOperandAddress()cpu.memoryRead(cpu.programCounter+1)))
+		return uint16(cpu.memoryRead(cpu.programCounter))
+	case ZeroPageX:
+		var pos = cpu.memoryRead(cpu.programCounter)
+		return uint16(pos + cpu.registerX)
+	case ZeroPageY:
+		var pos = cpu.memoryRead(cpu.programCounter)
+		return uint16(pos + cpu.registerY)
+	case Absolute:
+		return cpu.memoryReadU16(cpu.programCounter)
+	case AbsoluteX:
+		var pos = cpu.memoryReadU16(cpu.programCounter)
+		return pos + uint16(cpu.registerX)
+	case AbsoluteY:
+		var pos = cpu.memoryReadU16(cpu.programCounter)
+		return pos + uint16(cpu.registerY)
+	case Indirect:
+		var ref = cpu.memoryReadU16(cpu.programCounter)
+		return cpu.memoryReadU16(ref)
+	case IndirectX:
+		var base = cpu.memoryRead(cpu.programCounter)
+		return cpu.memoryReadU16(uint16(base + cpu.registerX))
+	case IndirectY:
+		var ref = cpu.memoryReadU16(cpu.programCounter)
+		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
+	default:
+		panic(fmt.Sprintf("addressing mode %v is not supported for tracing (operand)", opCode.addressingMode))
+	}
+
+	// CPU Registers
+	builder.WriteString(fmt.Sprintf("A:%X X:%X Y:%X P:%X SP:%X", cpu.registerA, cpu.registerX, cpu.registerY, cpu.statusFlags, cpu.stackPointer))
+	// TODO : CPU and PPU cycles
 }
