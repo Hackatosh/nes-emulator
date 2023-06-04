@@ -56,7 +56,7 @@ const (
 	NEGATIVE_FLAG                     = 0b1000_0000
 )
 
-func (cpu CPU) setFlagToValue(statusFlag StatusFlag, value bool) {
+func (cpu *CPU) setFlagToValue(statusFlag StatusFlag, value bool) {
 	if value {
 		cpu.statusFlags = cpu.statusFlags | uint8(statusFlag)
 	} else {
@@ -64,53 +64,53 @@ func (cpu CPU) setFlagToValue(statusFlag StatusFlag, value bool) {
 	}
 }
 
-func (cpu CPU) isFlagSet(statusFlag StatusFlag) bool {
+func (cpu *CPU) isFlagSet(statusFlag StatusFlag) bool {
 	return cpu.statusFlags&uint8(statusFlag) != 0
 }
 
-func (cpu CPU) setZeroFlagAndNegativeFlagForResult(result uint8) {
+func (cpu *CPU) setZeroFlagAndNegativeFlagForResult(result uint8) {
 	cpu.setFlagToValue(ZERO_FLAG, result == 0)
 	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(result))
 }
 
 // Memory helpers
 
-func (cpu CPU) memoryRead(address uint16) uint8 {
+func (cpu *CPU) memoryRead(address uint16) uint8 {
 	return cpu.bus.MemoryRead(address)
 }
 
-func (cpu CPU) memoryWrite(address uint16, data uint8) {
+func (cpu *CPU) memoryWrite(address uint16, data uint8) {
 	cpu.bus.MemoryWrite(address, data)
 }
 
-func (cpu CPU) memoryReadU16(address uint16) uint16 {
+func (cpu *CPU) memoryReadU16(address uint16) uint16 {
 	return cpu.bus.MemoryReadU16(address)
 }
 
-func (cpu CPU) memoryWriteU16(address uint16, data uint16) {
+func (cpu *CPU) memoryWriteU16(address uint16, data uint16) {
 	cpu.bus.MemoryWriteU16(address, data)
 }
 
 // Stack helpers
 
-func (cpu CPU) pushStack(value uint8) {
+func (cpu *CPU) pushStack(value uint8) {
 	cpu.memoryWrite(STACK_BASE+uint16(cpu.stackPointer), value)
 	cpu.stackPointer -= 1
 }
 
-func (cpu CPU) pullStack() uint8 {
+func (cpu *CPU) pullStack() uint8 {
 	cpu.stackPointer += 1
 	return cpu.memoryRead(STACK_BASE + uint16(cpu.stackPointer))
 }
 
-func (cpu CPU) pushStackU16(value uint16) {
+func (cpu *CPU) pushStackU16(value uint16) {
 	var bytes = make([]uint8, 2)
 	binary.LittleEndian.PutUint16(bytes, value)
 	cpu.pushStack(bytes[0])
 	cpu.pushStack(bytes[1])
 }
 
-func (cpu CPU) pullStackU16() uint16 {
+func (cpu *CPU) pullStackU16() uint16 {
 	var bytes = make([]uint8, 2)
 	bytes[1] = cpu.pullStack()
 	bytes[0] = cpu.pullStack()
@@ -118,7 +118,7 @@ func (cpu CPU) pullStackU16() uint16 {
 }
 
 // This does not get the operand but the address of the operand, which will be the retrieved using memory read
-func (cpu CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint16) uint16 {
+func (cpu *CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint16) uint16 {
 	// Program counter is where the opCode is located
 	switch mode {
 	case Implied:
@@ -169,7 +169,7 @@ func (cpu CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint1
 // Helpers for Ops Code operations
 
 // http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
-func (cpu CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
+func (cpu *CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
 	var sum = uint16(a) + uint16(b)
 	if carry {
 		sum += 1
@@ -180,7 +180,7 @@ func (cpu CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
 	return result, hasCarry, hasOverflow
 }
 
-func (cpu CPU) branch(cpuStepInfos StepInfos, condition bool) {
+func (cpu *CPU) branch(cpuStepInfos StepInfos, condition bool) {
 	if condition {
 		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 		if !isNegative(operand) {
@@ -194,7 +194,7 @@ func (cpu CPU) branch(cpuStepInfos StepInfos, condition bool) {
 
 // Ops code operations
 
-func (cpu CPU) adc(cpuStepInfos StepInfos) {
+func (cpu *CPU) adc(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, operand, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
@@ -203,13 +203,13 @@ func (cpu CPU) adc(cpuStepInfos StepInfos) {
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) and(cpuStepInfos StepInfos) {
+func (cpu *CPU) and(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = cpu.registerA & operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) asl(cpuStepInfos StepInfos) {
+func (cpu *CPU) asl(cpuStepInfos StepInfos) {
 	if cpuStepInfos.opCode.addressingMode == Accumulator {
 		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b1000_0000 != 0)
 		cpu.registerA = cpu.registerA << 1
@@ -223,150 +223,150 @@ func (cpu CPU) asl(cpuStepInfos StepInfos) {
 	}
 }
 
-func (cpu CPU) bcc(cpuStepInfos StepInfos) {
+func (cpu *CPU) bcc(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, !cpu.isFlagSet(CARRY_FLAG))
 }
 
-func (cpu CPU) bcs(cpuStepInfos StepInfos) {
+func (cpu *CPU) bcs(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, cpu.isFlagSet(CARRY_FLAG))
 }
 
-func (cpu CPU) beq(cpuStepInfos StepInfos) {
+func (cpu *CPU) beq(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, cpu.isFlagSet(ZERO_FLAG))
 }
 
-func (cpu CPU) bit(cpuStepInfos StepInfos) {
+func (cpu *CPU) bit(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand & cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 	cpu.setFlagToValue(OVERFLOW_FLAG, result&0b0100_0000 != 0)
 }
 
-func (cpu CPU) bmi(cpuStepInfos StepInfos) {
+func (cpu *CPU) bmi(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, cpu.isFlagSet(NEGATIVE_FLAG))
 }
 
-func (cpu CPU) bne(cpuStepInfos StepInfos) {
+func (cpu *CPU) bne(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, !cpu.isFlagSet(ZERO_FLAG))
 }
 
-func (cpu CPU) bpl(cpuStepInfos StepInfos) {
+func (cpu *CPU) bpl(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, !cpu.isFlagSet(NEGATIVE_FLAG))
 }
 
-func (cpu CPU) bvc(cpuStepInfos StepInfos) {
+func (cpu *CPU) bvc(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, !cpu.isFlagSet(OVERFLOW_FLAG))
 }
 
-func (cpu CPU) bvs(cpuStepInfos StepInfos) {
+func (cpu *CPU) bvs(cpuStepInfos StepInfos) {
 	cpu.branch(cpuStepInfos, cpu.isFlagSet(OVERFLOW_FLAG))
 }
 
-func (cpu CPU) clc(cpuStepInfos StepInfos) {
+func (cpu *CPU) clc(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(CARRY_FLAG, false)
 }
 
-func (cpu CPU) cld(cpuStepInfos StepInfos) {
+func (cpu *CPU) cld(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(DECIMAL_FLAG, false)
 }
 
-func (cpu CPU) cli(cpuStepInfos StepInfos) {
+func (cpu *CPU) cli(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(INTERRUPT_DISABLE_FLAG, false)
 }
 
-func (cpu CPU) clv(cpuStepInfos StepInfos) {
+func (cpu *CPU) clv(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(OVERFLOW_FLAG, false)
 }
 
-func (cpu CPU) compare(cpuStepInfos StepInfos, compareWith uint8) {
+func (cpu *CPU) compare(cpuStepInfos StepInfos, compareWith uint8) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = compareWith - operand
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 	cpu.setFlagToValue(CARRY_FLAG, compareWith > operand)
 }
 
-func (cpu CPU) cmp(cpuStepInfos StepInfos) {
+func (cpu *CPU) cmp(cpuStepInfos StepInfos) {
 	cpu.compare(cpuStepInfos, cpu.registerA)
 }
 
-func (cpu CPU) cpx(cpuStepInfos StepInfos) {
+func (cpu *CPU) cpx(cpuStepInfos StepInfos) {
 	cpu.compare(cpuStepInfos, cpu.registerX)
 }
 
-func (cpu CPU) cpy(cpuStepInfos StepInfos) {
+func (cpu *CPU) cpy(cpuStepInfos StepInfos) {
 	cpu.compare(cpuStepInfos, cpu.registerY)
 }
 
-func (cpu CPU) dec(cpuStepInfos StepInfos) {
+func (cpu *CPU) dec(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand - 1
 	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 }
 
-func (cpu CPU) dex(cpuStepInfos StepInfos) {
+func (cpu *CPU) dex(cpuStepInfos StepInfos) {
 	cpu.registerX -= 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) dey(cpuStepInfos StepInfos) {
+func (cpu *CPU) dey(cpuStepInfos StepInfos) {
 	cpu.registerY -= 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) eor(cpuStepInfos StepInfos) {
+func (cpu *CPU) eor(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = cpu.registerA ^ operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) inc(cpuStepInfos StepInfos) {
+func (cpu *CPU) inc(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand + 1
 	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
 }
 
-func (cpu CPU) inx(cpuStepInfos StepInfos) {
+func (cpu *CPU) inx(cpuStepInfos StepInfos) {
 	cpu.registerX += 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) iny(cpuStepInfos StepInfos) {
+func (cpu *CPU) iny(cpuStepInfos StepInfos) {
 	cpu.registerY += 1
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) jmp(cpuStepInfos StepInfos) {
+func (cpu *CPU) jmp(cpuStepInfos StepInfos) {
 	// TODO : some shady shit is done here in the tutorial, wtf ??
 	cpu.programCounter = cpuStepInfos.operandAddress
 }
 
-func (cpu CPU) jsr(cpuStepInfos StepInfos) {
+func (cpu *CPU) jsr(cpuStepInfos StepInfos) {
 	// +2 is for absolute read
 	cpu.pushStackU16(cpu.programCounter + 2 - 1)
 	cpu.programCounter = cpuStepInfos.operandAddress
 }
 
-func (cpu CPU) lda(cpuStepInfos StepInfos) {
+func (cpu *CPU) lda(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) ldx(cpuStepInfos StepInfos) {
+func (cpu *CPU) ldx(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerX = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) ldy(cpuStepInfos StepInfos) {
+func (cpu *CPU) ldy(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerY = operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) lsr(cpuStepInfos StepInfos) {
+func (cpu *CPU) lsr(cpuStepInfos StepInfos) {
 	if cpuStepInfos.opCode.addressingMode == Accumulator {
 		cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
 		cpu.registerA = cpu.registerA >> 1
@@ -380,34 +380,34 @@ func (cpu CPU) lsr(cpuStepInfos StepInfos) {
 	}
 }
 
-func (cpu CPU) nop(cpuStepInfos StepInfos) {}
+func (cpu *CPU) nop(cpuStepInfos StepInfos) {}
 
-func (cpu CPU) ora(cpuStepInfos StepInfos) {
+func (cpu *CPU) ora(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	cpu.registerA = cpu.registerA | operand
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) pha(cpuStepInfos StepInfos) {
+func (cpu *CPU) pha(cpuStepInfos StepInfos) {
 	cpu.pushStack(cpu.registerA)
 }
 
-func (cpu CPU) php(cpuStepInfos StepInfos) {
+func (cpu *CPU) php(cpuStepInfos StepInfos) {
 	cpu.pushStack(cpu.statusFlags)
 	cpu.setFlagToValue(BREAK_FLAG, false)
 	cpu.setFlagToValue(BREAK_2_FLAG, true)
 }
 
-func (cpu CPU) pla(cpuStepInfos StepInfos) {
+func (cpu *CPU) pla(cpuStepInfos StepInfos) {
 	cpu.registerA = cpu.pullStack()
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) plp(cpuStepInfos StepInfos) {
+func (cpu *CPU) plp(cpuStepInfos StepInfos) {
 	cpu.statusFlags = cpu.pullStack() | BREAK_FLAG | BREAK_2_FLAG
 }
 
-func (cpu CPU) rol(cpuStepInfos StepInfos) {
+func (cpu *CPU) rol(cpuStepInfos StepInfos) {
 	var carryMask uint8 = 0b0000_0000
 	if cpu.isFlagSet(CARRY_FLAG) {
 		carryMask = 0b0000_0001
@@ -425,7 +425,7 @@ func (cpu CPU) rol(cpuStepInfos StepInfos) {
 	}
 }
 
-func (cpu CPU) ror(cpuStepInfos StepInfos) {
+func (cpu *CPU) ror(cpuStepInfos StepInfos) {
 	var carryMask uint8 = 0b0000_0000
 	if cpu.isFlagSet(CARRY_FLAG) {
 		carryMask = 0b1000_0000
@@ -443,18 +443,18 @@ func (cpu CPU) ror(cpuStepInfos StepInfos) {
 	}
 }
 
-func (cpu CPU) rti(cpuStepInfos StepInfos) {
+func (cpu *CPU) rti(cpuStepInfos StepInfos) {
 	cpu.statusFlags = cpu.pullStack()
 	cpu.setFlagToValue(BREAK_FLAG, false)
 	cpu.setFlagToValue(BREAK_2_FLAG, true)
 	cpu.programCounter = cpu.pullStackU16()
 }
 
-func (cpu CPU) rts(cpuStepInfos StepInfos) {
+func (cpu *CPU) rts(cpuStepInfos StepInfos) {
 	cpu.programCounter = cpu.pullStackU16() + 1
 }
 
-func (cpu CPU) sbc(cpuStepInfos StepInfos) {
+func (cpu *CPU) sbc(cpuStepInfos StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
@@ -463,55 +463,55 @@ func (cpu CPU) sbc(cpuStepInfos StepInfos) {
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) sec(cpuStepInfos StepInfos) {
+func (cpu *CPU) sec(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(CARRY_FLAG, true)
 }
 
-func (cpu CPU) sed(cpuStepInfos StepInfos) {
+func (cpu *CPU) sed(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(DECIMAL_FLAG, true)
 }
 
-func (cpu CPU) sei(cpuStepInfos StepInfos) {
+func (cpu *CPU) sei(cpuStepInfos StepInfos) {
 	cpu.setFlagToValue(INTERRUPT_DISABLE_FLAG, true)
 }
 
-func (cpu CPU) sta(cpuStepInfos StepInfos) {
+func (cpu *CPU) sta(cpuStepInfos StepInfos) {
 	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerA)
 }
 
-func (cpu CPU) stx(cpuStepInfos StepInfos) {
+func (cpu *CPU) stx(cpuStepInfos StepInfos) {
 	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerX)
 }
 
-func (cpu CPU) sty(cpuStepInfos StepInfos) {
+func (cpu *CPU) sty(cpuStepInfos StepInfos) {
 	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerY)
 }
 
-func (cpu CPU) tax(cpuStepInfos StepInfos) {
+func (cpu *CPU) tax(cpuStepInfos StepInfos) {
 	cpu.registerX = cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) tay(cpuStepInfos StepInfos) {
+func (cpu *CPU) tay(cpuStepInfos StepInfos) {
 	cpu.registerY = cpu.registerA
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerY)
 }
 
-func (cpu CPU) tsx(cpuStepInfos StepInfos) {
+func (cpu *CPU) tsx(cpuStepInfos StepInfos) {
 	cpu.registerX = cpu.stackPointer
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
-func (cpu CPU) txa(cpuStepInfos StepInfos) {
+func (cpu *CPU) txa(cpuStepInfos StepInfos) {
 	cpu.registerA = cpu.registerX
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
-func (cpu CPU) txs(cpuStepInfos StepInfos) {
+func (cpu *CPU) txs(cpuStepInfos StepInfos) {
 	cpu.stackPointer = cpu.registerX
 }
 
-func (cpu CPU) tya(cpuStepInfos StepInfos) {
+func (cpu *CPU) tya(cpuStepInfos StepInfos) {
 	cpu.registerA = cpu.registerY
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
@@ -531,13 +531,12 @@ func NewCPU(consoleBus bus.Bus) CPU {
 	return cpu
 }
 
-func (cpu CPU) Reset() {
+func (cpu *CPU) Reset() {
 	cpu.registerA = 0
 	cpu.registerX = 0
 	cpu.registerY = 0
 	cpu.statusFlags = 0b00100100
 	cpu.stackPointer = STACK_RESET
-	cpu.memoryWriteU16(0xFFFC, 0x8000)
 	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
 }
 
@@ -547,7 +546,7 @@ type StepInfos struct {
 	operandAddress uint16
 }
 
-func (cpu CPU) Run() {
+func (cpu *CPU) Run() {
 	for {
 		var opHexCode = cpu.memoryRead(cpu.programCounter)
 		var programCounterBeforeOperation = cpu.programCounter
@@ -683,7 +682,7 @@ func (cpu CPU) Run() {
 }
 
 // Must be run at the beginning of the loop
-func printCPUState(cpu CPU, cpuStepInfos StepInfos) {
+func printCPUState(cpu *CPU, cpuStepInfos StepInfos) {
 	var builder = strings.Builder{}
 	var param1 = cpu.memoryRead(cpu.programCounter + 1)
 	var param2 = cpu.memoryRead(cpu.programCounter + 2)
