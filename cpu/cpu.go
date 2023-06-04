@@ -519,7 +519,7 @@ func (cpu CPU) tya(cpuStepInfos StepInfos) {
 // Load program and reset CPU
 
 func NewCPU(consoleBus bus.Bus) CPU {
-	cpu := CPU{
+	var cpu = CPU{
 		registerA:      0,
 		registerX:      0,
 		registerY:      0,
@@ -558,6 +558,7 @@ func (cpu CPU) Run() {
 			opCode:         opCode,
 			operandAddress: operandAddress,
 		}
+		printCPUState(cpu, stepInfos)
 		switch opCode.operation {
 		case ADC:
 			cpu.adc(stepInfos)

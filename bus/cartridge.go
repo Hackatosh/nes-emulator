@@ -34,7 +34,8 @@ func ParseRawRom(raw []byte) (Rom, error) {
 	var isTrainerEnabled = raw[6]&0b0000_0100 != 0
 	var isFourScreenEnabled = raw[6]&0b0000_1000 != 0
 	var mapper = (raw[6] >> 4) | (raw[7] & 0b1111_0000)
-	var isVerifiedINESV1 = raw[7]&0b0000_0011 == 0
+	// TODO : this does not work ??
+	//var isVerifiedINESV1 = raw[7]&0b0000_0011 == 0
 	var isINESV2 = raw[7]&0b0000_1100 != 0
 
 	/* SANITY CHECKS */
@@ -47,9 +48,9 @@ func ParseRawRom(raw []byte) (Rom, error) {
 		return Rom{}, errors.New("iNES v2 is not supported")
 	}
 
-	if isVerifiedINESV1 {
-		return Rom{}, errors.New("control bites for iNes v1 are incorrect")
-	}
+	//if isVerifiedINESV1 {
+	//	return Rom{}, errors.New("control bites for iNes v1 are incorrect")
+	//}
 
 	/* Building ROM */
 
