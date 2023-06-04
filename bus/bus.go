@@ -76,13 +76,12 @@ func (bus Bus) MemoryWriteU16(address uint16, data uint16) {
 	bus.MemoryWrite(address+1, bytes[1])
 }
 
-func (bus Bus) LoadProgram(program []uint8) {
-	copy(bus.memory[0x8000:0xFFFF], program)
-}
-
-func NewBus(rom Rom) Bus {
+func NewBus() Bus {
 	return Bus{
-		rom:    rom,
 		memory: [0xffff]uint8{},
 	}
+}
+
+func (bus Bus) LoadRom(rom Rom) {
+	bus.rom = rom
 }

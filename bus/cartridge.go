@@ -23,7 +23,7 @@ type Rom struct {
 	screenMirroring ScreenMirroring
 }
 
-func NewRom(raw []byte) (Rom, error) {
+func ParseRawRom(raw []byte) (Rom, error) {
 	/* PARSING HEADERS */
 	var nesTag = raw[0:4]
 	var numberOfROMBanks = int(raw[4])  // PRG ROM
