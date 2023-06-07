@@ -6,16 +6,16 @@ import (
 )
 
 type NesConsole struct {
-	bus bus.Bus
-	cpu cpu.CPU
+	bus *bus.Bus
+	cpu *cpu.CPU
 }
 
 func NewConsole() NesConsole {
 	var consoleBus = bus.NewBus()
-	var consoleCPU = cpu.NewCPU(consoleBus)
+	var consoleCPU = cpu.NewCPU(&consoleBus)
 	return NesConsole{
-		bus: consoleBus,
-		cpu: consoleCPU,
+		bus: &consoleBus,
+		cpu: &consoleCPU,
 	}
 }
 
