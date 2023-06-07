@@ -692,53 +692,58 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 	builder.WriteString(fmt.Sprintf("%04X  ", cpu.programCounter))
 
 	// CPU opcode
-
+	var hexOpCodeTrace string
 	switch bytesReadForAddressing {
 	case 3:
-		builder.WriteString(fmt.Sprintf("%02X %02X %02X  ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2)))
+		hexOpCodeTrace = fmt.Sprintf("%02X %02X %02X  ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2))
 	case 2:
-		builder.WriteString(fmt.Sprintf("%02X %02X     ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1)))
+		hexOpCodeTrace = fmt.Sprintf("%02X %02X     ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1))
 	case 1:
-		builder.WriteString(fmt.Sprintf("%02X        ", cpuStepInfos.opHexCode))
+		hexOpCodeTrace = fmt.Sprintf("%02X        ", cpuStepInfos.opHexCode)
 	}
+	builder.WriteString(fmt.Sprintf("%-10s", hexOpCodeTrace))
+
 	// CPU opcode in assembly
 	builder.WriteString(fmt.Sprintf("%s ", cpuStepInfos.opCode.operation))
+
+	var addressingTrace string
 	switch cpuStepInfos.opCode.addressingMode {
 	case Implied:
-		builder.WriteString(fmt.Sprintf("                                "))
+		addressingTrace = fmt.Sprintf("")
 	case Accumulator:
-		builder.WriteString(fmt.Sprintf("A                            "))
+		addressingTrace = fmt.Sprintf("A")
 	case Immediate:
-		builder.WriteString(fmt.Sprintf("#$%02X                       ", param1))
+		addressingTrace = fmt.Sprintf("#$%02X", param1)
 	case Relative:
 		// Branching instruction
-		builder.WriteString(fmt.Sprintf("$%04X                       ", cpuStepInfos.operandAddress))
+		addressingTrace = fmt.Sprintf("$%04X", cpuStepInfos.operandAddress)
 	case ZeroPage:
-		builder.WriteString(fmt.Sprintf("$%02X = %02X                  ", param1, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("$%02X = %02X", param1, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case ZeroPageX:
-		builder.WriteString(fmt.Sprintf("$%02X,X @ %02X = %02X           ", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("$%02X,X @ %02X = %02X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case ZeroPageY:
-		builder.WriteString(fmt.Sprintf("$%02X,Y @ %02X = %02X           ", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("$%02X,Y @ %02X = %02X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case Absolute:
 		if cpuStepInfos.opCode.operation == JMP {
-			builder.WriteString(fmt.Sprintf("$%02X%02X                     ", param1, param2))
+			addressingTrace = fmt.Sprintf("$%02X%02X", param1, param2)
 		} else {
-			builder.WriteString(fmt.Sprintf("$%02X%02X = %02X                ", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
+			addressingTrace = fmt.Sprintf("$%02X%02X = %02X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress))
 		}
 	case AbsoluteX:
-		builder.WriteString(fmt.Sprintf("$%02X%02X,X @ %04X = %02X         ", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("$%02X%02X,X @ %04X = %02X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case AbsoluteY:
-		builder.WriteString(fmt.Sprintf("$%02X%02X,Y @ %04X = %02X         ", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("$%02X%02X,Y @ %04X = %02X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case Indirect:
 		// JMP
-		builder.WriteString(fmt.Sprintf("($%02X%02X) = %04X              ", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("($%02X%02X) = %04X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case IndirectX:
-		builder.WriteString(fmt.Sprintf("($%02X,X) @ %02X = %04X = %02X    ", param1, param1+cpu.registerX, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("($%02X,X) @ %02X = %04X = %02X", param1, param1+cpu.registerX, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case IndirectY:
-		builder.WriteString(fmt.Sprintf("($%02X),Y = %04X @ %04X = %02X    ", param1, cpuStepInfos.operandAddress-uint16(cpu.registerY), cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress)))
+		addressingTrace = fmt.Sprintf("($%02X),Y = %04X @ %04X = %02X", param1, cpuStepInfos.operandAddress-uint16(cpu.registerY), cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	default:
 		panic(fmt.Sprintf("addressing mode %v is not supported for tracing", cpuStepInfos.opCode.addressingMode))
 	}
+	builder.WriteString(fmt.Sprintf("%-32s", addressingTrace))
 
 	// CPU Registers
 	builder.WriteString(fmt.Sprintf("A:%02X X:%02X Y:%02X P:%02X SP:%02X", cpu.registerA, cpu.registerX, cpu.registerY, cpu.statusFlags, cpu.stackPointer))
