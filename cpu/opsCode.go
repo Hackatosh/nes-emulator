@@ -22,7 +22,7 @@ const (
 	IndirectY
 )
 
-func getNumberOfBytesReadForAddressingMode(addressingMode AddressingMode) uint16 {
+func getNumberOfBytesReadForOperation(addressingMode AddressingMode) uint16 {
 	switch addressingMode {
 	case Implied, Accumulator:
 		return 1
