@@ -13,7 +13,7 @@ const PRG_ROM_START uint16 = 0x8000
 const PRG_ROM_END uint16 = 0xFFFF
 
 type Bus struct {
-	Rom    Rom
+	Rom    *Rom
 	memory [0xffff]uint8
 	// More info on memory structure here : https://www.nesdev.org/wiki/CPU_memory_map
 }
@@ -82,7 +82,7 @@ func NewBus() Bus {
 	}
 }
 
-func (bus *Bus) LoadRom(rom Rom) {
+func (bus *Bus) LoadRom(rom *Rom) {
 	bus.Rom = rom
 
 }

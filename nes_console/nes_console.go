@@ -19,7 +19,7 @@ func NewConsole() NesConsole {
 	}
 }
 
-func (console *NesConsole) RunRom(rom bus.Rom) {
+func (console *NesConsole) RunRom(rom *bus.Rom) {
 	console.bus.LoadRom(rom)
 	console.cpu.Reset()
 	console.cpu.Run()

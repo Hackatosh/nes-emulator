@@ -23,7 +23,7 @@ type Rom struct {
 	screenMirroring ScreenMirroring
 }
 
-func ParseRawRom(raw []byte) (Rom, error) {
+func ParseRawRom(raw []byte) (*Rom, error) {
 	/* PARSING HEADERS */
 	var nesTag = raw[0:4]
 	var numberOfROMBanks = int(raw[4])  // PRG ROM
@@ -41,11 +41,11 @@ func ParseRawRom(raw []byte) (Rom, error) {
 	/* SANITY CHECKS */
 
 	if !bytes.Equal(nesTag, []byte{0x4E, 0x45, 0x53, 0x1A}) {
-		return Rom{}, errors.New("file is not in iNES file format (invalid tag)")
+		return &Rom{}, errors.New("file is not in iNES file format (invalid tag)")
 	}
 
 	if isINESV2 {
-		return Rom{}, errors.New("iNES v2 is not supported")
+		return &Rom{}, errors.New("iNES v2 is not supported")
 	}
 
 	//if isVerifiedINESV1 {
@@ -71,7 +71,7 @@ func ParseRawRom(raw []byte) (Rom, error) {
 		prgROMStart += 512 // Trainer is of fixed size 512 bytes
 	}
 	var chrROMStart = prgROMStart + prgROMSize
-	return Rom{
+	return &Rom{
 		prgRom:          raw[prgROMStart : prgROMStart+prgROMSize],
 		chrRom:          raw[chrROMStart : chrROMStart+chrROMSize],
 		mapper:          mapper,
