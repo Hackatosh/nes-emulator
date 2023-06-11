@@ -157,7 +157,8 @@ func (cpu *CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint
 		return cpu.memoryReadU16(ref)
 	case IndirectX:
 		var base = cpu.memoryRead(opCodeProgramCounter + 1)
-		return cpu.memoryReadU16(uint16(base + cpu.registerX))
+		// Cannot use cpu.memoryRead16 as we need to wrap the address !
+		return binary.LittleEndian.Uint16([]uint8{cpu.memoryRead(uint16(base + cpu.registerX)), cpu.memoryRead(uint16(base + cpu.registerX + 1))})
 	case IndirectY:
 		var ref = cpu.memoryReadU16(opCodeProgramCounter + 1)
 		return cpu.memoryReadU16(ref) + uint16(cpu.registerY)
