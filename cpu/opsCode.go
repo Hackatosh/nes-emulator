@@ -26,9 +26,9 @@ func getNumberOfBytesReadForOperation(addressingMode AddressingMode) uint16 {
 	switch addressingMode {
 	case Implied, Accumulator:
 		return 1
-	case Relative, Immediate, ZeroPage, ZeroPageX, ZeroPageY, Indirect, IndirectX, IndirectY:
+	case Relative, Immediate, ZeroPage, ZeroPageX, ZeroPageY, IndirectX, IndirectY:
 		return 2
-	case Absolute, AbsoluteX, AbsoluteY:
+	case Indirect, Absolute, AbsoluteX, AbsoluteY:
 		return 3
 	default:
 		panic(fmt.Sprintf("addressing mode %v is unsupported for get number of bytes read"))

@@ -733,7 +733,7 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 		addressingTrace = fmt.Sprintf("$%02X%02X,Y @ %04X = %02X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case Indirect:
 		// JMP
-		addressingTrace = fmt.Sprintf("($%02X%02X) = %04X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress))
+		addressingTrace = fmt.Sprintf("($%02X%02X) = %04X", param2, param1, cpuStepInfos.operandAddress)
 	case IndirectX:
 		addressingTrace = fmt.Sprintf("($%02X,X) @ %02X = %04X = %02X", param1, param1+cpu.registerX, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case IndirectY:
