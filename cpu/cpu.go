@@ -719,7 +719,7 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 	case ZeroPageY:
 		addressingTrace = fmt.Sprintf("$%02X,Y @ %02X = %02X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case Absolute:
-		if cpuStepInfos.opCode.operation == JMP {
+		if cpuStepInfos.opCode.operation == JMP || cpuStepInfos.opCode.operation == JSR {
 			addressingTrace = fmt.Sprintf("$%02X%02X", param2, param1)
 		} else {
 			addressingTrace = fmt.Sprintf("$%02X%02X = %02X", param2, param1, cpu.memoryRead(cpuStepInfos.operandAddress))
