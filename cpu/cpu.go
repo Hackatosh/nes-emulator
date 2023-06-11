@@ -337,8 +337,7 @@ func (cpu *CPU) jmp(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) jsr(cpuStepInfos *StepInfos) {
-	// +2 is for absolute read
-	cpu.pushStackU16(cpu.programCounter + 2 - 1)
+	cpu.pushStackU16(cpu.programCounter + getNumberOfBytesReadForOperation(cpuStepInfos.opCode.addressingMode) - 1)
 	cpu.programCounter = cpuStepInfos.operandAddress
 }
 
@@ -387,9 +386,7 @@ func (cpu *CPU) pha(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) php(cpuStepInfos *StepInfos) {
-	cpu.pushStack(cpu.statusFlags)
-	cpu.setFlagToValue(BREAK_FLAG, false)
-	cpu.setFlagToValue(BREAK_2_FLAG, true)
+	cpu.pushStack(cpu.statusFlags | BREAK_FLAG | BREAK_2_FLAG)
 }
 
 func (cpu *CPU) pla(cpuStepInfos *StepInfos) {
