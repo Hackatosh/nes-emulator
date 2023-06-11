@@ -276,7 +276,7 @@ func (cpu *CPU) compare(cpuStepInfos *StepInfos, compareWith uint8) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = compareWith - operand
 	cpu.setZeroFlagAndNegativeFlagForResult(result)
-	cpu.setFlagToValue(CARRY_FLAG, compareWith > operand)
+	cpu.setFlagToValue(CARRY_FLAG, compareWith >= operand)
 }
 
 func (cpu *CPU) cmp(cpuStepInfos *StepInfos) {
