@@ -154,7 +154,16 @@ func (cpu *CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint
 		return pos + uint16(cpu.registerY)
 	case Indirect:
 		var ref = cpu.memoryReadU16(opCodeProgramCounter + 1)
-		return cpu.memoryReadU16(ref)
+		// Bug with page boundary:
+		// If we try to read the end of a page X and the beginning of a page X + 1
+		// Instead JMP will read the end of the page X and the beginning of the page X
+		if ref&0x00FF == 0x00FF {
+			var pageBeginning = ref & 0xFF00
+			return binary.LittleEndian.Uint16([]uint8{cpu.memoryRead(ref), cpu.memoryRead(pageBeginning)})
+		} else {
+			return cpu.memoryReadU16(ref)
+		}
+
 	case IndirectX:
 		var base = cpu.memoryRead(opCodeProgramCounter + 1)
 		// Cannot use cpu.memoryRead16 as we need to wrap the address !
@@ -728,9 +737,9 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 			addressingTrace = fmt.Sprintf("$%02X%02X = %02X", param2, param1, cpu.memoryRead(cpuStepInfos.operandAddress))
 		}
 	case AbsoluteX:
-		addressingTrace = fmt.Sprintf("$%02X%02X,X @ %04X = %02X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
+		addressingTrace = fmt.Sprintf("$%02X%02X,X @ %04X = %02X", param2, param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case AbsoluteY:
-		addressingTrace = fmt.Sprintf("$%02X%02X,Y @ %04X = %02X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
+		addressingTrace = fmt.Sprintf("$%02X%02X,Y @ %04X = %02X", param2, param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case Indirect:
 		// JMP
 		addressingTrace = fmt.Sprintf("($%02X%02X) = %04X", param2, param1, cpuStepInfos.operandAddress)
