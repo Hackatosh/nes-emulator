@@ -106,14 +106,14 @@ func (cpu *CPU) pullStack() uint8 {
 func (cpu *CPU) pushStackU16(value uint16) {
 	var bytes = make([]uint8, 2)
 	binary.LittleEndian.PutUint16(bytes, value)
-	cpu.pushStack(bytes[0])
 	cpu.pushStack(bytes[1])
+	cpu.pushStack(bytes[0])
 }
 
 func (cpu *CPU) pullStackU16() uint16 {
 	var bytes = make([]uint8, 2)
-	bytes[1] = cpu.pullStack()
 	bytes[0] = cpu.pullStack()
+	bytes[1] = cpu.pullStack()
 	return binary.LittleEndian.Uint16(bytes)
 }
 
