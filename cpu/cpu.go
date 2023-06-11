@@ -163,7 +163,6 @@ func (cpu *CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint
 		} else {
 			return cpu.memoryReadU16(ref)
 		}
-
 	case IndirectX:
 		var base = cpu.memoryRead(opCodeProgramCounter + 1)
 		// Cannot use cpu.memoryRead16 as we need to wrap the address !
