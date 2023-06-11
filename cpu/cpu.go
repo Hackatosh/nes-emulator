@@ -60,7 +60,7 @@ func (cpu *CPU) setFlagToValue(statusFlag StatusFlag, value bool) {
 	if value {
 		cpu.statusFlags = cpu.statusFlags | uint8(statusFlag)
 	} else {
-		cpu.statusFlags = cpu.statusFlags ^ uint8(statusFlag)
+		cpu.statusFlags = cpu.statusFlags & (^uint8(statusFlag))
 	}
 }
 
@@ -129,10 +129,10 @@ func (cpu *CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint
 		return opCodeProgramCounter + 1
 	case Relative:
 		var offset = cpu.memoryRead(opCodeProgramCounter + 1)
-		if offset <= 0x7f {
-			return opCodeProgramCounter + uint16(offset) + 1
+		if !isNegative(offset) {
+			return opCodeProgramCounter + uint16(offset) + 2
 		} else {
-			return opCodeProgramCounter + 0x100 - uint16(offset) + 1
+			return opCodeProgramCounter + 0x100 - uint16(offset) + 2
 		}
 	case ZeroPage:
 		// It's only a 8 bits address with Zero Page, so you can only get an address in the first 256 memory cells
@@ -182,13 +182,7 @@ func (cpu *CPU) addWithCarry(a uint8, b uint8, carry bool) (uint8, bool, bool) {
 
 func (cpu *CPU) branch(cpuStepInfos *StepInfos, condition bool) {
 	if condition {
-		var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
-		if !isNegative(operand) {
-			cpu.programCounter += uint16(operand)
-		} else {
-			// 0x100 is 256
-			cpu.programCounter += 0x100 - uint16(operand)
-		}
+		cpu.programCounter = cpuStepInfos.operandAddress
 	}
 }
 
@@ -743,7 +737,7 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 	default:
 		panic(fmt.Sprintf("addressing mode %v is not supported for tracing", cpuStepInfos.opCode.addressingMode))
 	}
-	builder.WriteString(fmt.Sprintf("%-32s", addressingTrace))
+	builder.WriteString(fmt.Sprintf("%-28s", addressingTrace))
 
 	// CPU Registers
 	builder.WriteString(fmt.Sprintf("A:%02X X:%02X Y:%02X P:%02X SP:%02X", cpu.registerA, cpu.registerX, cpu.registerY, cpu.statusFlags, cpu.stackPointer))
