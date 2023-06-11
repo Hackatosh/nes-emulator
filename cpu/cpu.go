@@ -47,13 +47,13 @@ type StatusFlag uint8
 
 const (
 	CARRY_FLAG             StatusFlag = 0b0000_0001
-	ZERO_FLAG                         = 0b0000_0010
-	INTERRUPT_DISABLE_FLAG            = 0b0000_0100
-	DECIMAL_FLAG                      = 0b0000_1000
-	BREAK_FLAG                        = 0b0001_0000
-	BREAK_2_FLAG                      = 0b0010_0000
-	OVERFLOW_FLAG                     = 0b0100_0000
-	NEGATIVE_FLAG                     = 0b1000_0000
+	ZERO_FLAG              StatusFlag = 0b0000_0010
+	INTERRUPT_DISABLE_FLAG StatusFlag = 0b0000_0100
+	DECIMAL_FLAG           StatusFlag = 0b0000_1000
+	BREAK_FLAG             StatusFlag = 0b0001_0000
+	BREAK_2_FLAG           StatusFlag = 0b0010_0000
+	OVERFLOW_FLAG          StatusFlag = 0b0100_0000
+	NEGATIVE_FLAG          StatusFlag = 0b1000_0000
 )
 
 func (cpu *CPU) setFlagToValue(statusFlag StatusFlag, value bool) {
@@ -386,7 +386,8 @@ func (cpu *CPU) pha(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) php(cpuStepInfos *StepInfos) {
-	cpu.pushStack(cpu.statusFlags | BREAK_FLAG | BREAK_2_FLAG)
+	// https://www.nesdev.org/wiki/Status_flags#The_B_flag
+	cpu.pushStack(cpu.statusFlags | uint8(BREAK_FLAG) | uint8(BREAK_2_FLAG))
 }
 
 func (cpu *CPU) pla(cpuStepInfos *StepInfos) {
@@ -395,7 +396,9 @@ func (cpu *CPU) pla(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) plp(cpuStepInfos *StepInfos) {
-	cpu.statusFlags = cpu.pullStack() | BREAK_FLAG | BREAK_2_FLAG
+	cpu.statusFlags = cpu.pullStack()
+	cpu.setFlagToValue(BREAK_FLAG, false)
+	cpu.setFlagToValue(BREAK_2_FLAG, true)
 }
 
 func (cpu *CPU) rol(cpuStepInfos *StepInfos) {

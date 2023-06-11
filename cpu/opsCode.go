@@ -157,7 +157,7 @@ var hexToOpsCode = map[uint8]OpCode{
 	// CLI
 	0x58: {operation: CLI, addressingMode: Implied, cycles: 2},
 	// CLV
-	0xB8: {operation: CLD, addressingMode: Implied, cycles: 2},
+	0xB8: {operation: CLV, addressingMode: Implied, cycles: 2},
 	// CMP
 	0xC9: {operation: CMP, addressingMode: Immediate, cycles: 2},
 	0xC5: {operation: CMP, addressingMode: ZeroPage, cycles: 3},
