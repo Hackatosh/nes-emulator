@@ -537,7 +537,7 @@ func (cpu *CPU) Reset() {
 	cpu.registerY = 0
 	cpu.statusFlags = 0b00100100
 	cpu.stackPointer = STACK_RESET
-	cpu.programCounter = cpu.memoryReadU16(0xFFFC)
+	cpu.programCounter = 0xC000 //cpu.memoryReadU16(0xFFFC) uncomment when PPU is implemented
 }
 
 type StepInfos struct {
@@ -725,9 +725,9 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 		addressingTrace = fmt.Sprintf("$%02X,Y @ %02X = %02X", param1, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
 	case Absolute:
 		if cpuStepInfos.opCode.operation == JMP {
-			addressingTrace = fmt.Sprintf("$%02X%02X", param1, param2)
+			addressingTrace = fmt.Sprintf("$%02X%02X", param2, param1)
 		} else {
-			addressingTrace = fmt.Sprintf("$%02X%02X = %02X", param1, param2, cpu.memoryRead(cpuStepInfos.operandAddress))
+			addressingTrace = fmt.Sprintf("$%02X%02X = %02X", param2, param1, cpu.memoryRead(cpuStepInfos.operandAddress))
 		}
 	case AbsoluteX:
 		addressingTrace = fmt.Sprintf("$%02X%02X,X @ %04X = %02X", param1, param2, cpuStepInfos.operandAddress, cpu.memoryRead(cpuStepInfos.operandAddress))
