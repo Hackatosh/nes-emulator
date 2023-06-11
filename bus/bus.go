@@ -13,7 +13,7 @@ const PRG_ROM_START uint16 = 0x8000
 const PRG_ROM_END uint16 = 0xFFFF
 
 type Bus struct {
-	Rom    *Rom
+	rom    *Rom
 	memory [0xffff]uint8
 	// More info on memory structure here : https://www.nesdev.org/wiki/CPU_memory_map
 }
@@ -23,10 +23,10 @@ type Bus struct {
 func (bus *Bus) readPrgROM(address uint16) uint8 {
 	var unmirroredAddress = address - 0x8000
 	// Unmirroring if prgRom is of 16 KiB (we map 32 KiB addressing space)
-	if len(bus.Rom.prgRom) == 0x4000 && address >= 0x4000 {
+	if len(bus.rom.prgRom) == 0x4000 && address >= 0x4000 {
 		unmirroredAddress = address % 0x4000
 	}
-	return bus.Rom.prgRom[unmirroredAddress]
+	return bus.rom.prgRom[unmirroredAddress]
 }
 
 func (bus *Bus) MemoryRead(address uint16) uint8 {
@@ -83,6 +83,6 @@ func NewBus() Bus {
 }
 
 func (bus *Bus) LoadRom(rom *Rom) {
-	bus.Rom = rom
+	bus.rom = rom
 
 }

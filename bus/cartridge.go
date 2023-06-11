@@ -49,7 +49,7 @@ func ParseRawRom(raw []byte) (*Rom, error) {
 	}
 
 	//if isVerifiedINESV1 {
-	//	return Rom{}, errors.New("control bites for iNes v1 are incorrect")
+	//	return rom{}, errors.New("control bites for iNes v1 are incorrect")
 	//}
 
 	/* Building ROM */

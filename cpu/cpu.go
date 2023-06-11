@@ -32,7 +32,7 @@ type CPU struct {
 	// |+-------- Overflow
 	// +--------- Negative
 	programCounter uint16
-	Bus            *bus.Bus
+	bus            *bus.Bus
 }
 
 // Generic helpers
@@ -76,19 +76,19 @@ func (cpu *CPU) setZeroFlagAndNegativeFlagForResult(result uint8) {
 // Memory helpers
 
 func (cpu *CPU) memoryRead(address uint16) uint8 {
-	return cpu.Bus.MemoryRead(address)
+	return cpu.bus.MemoryRead(address)
 }
 
 func (cpu *CPU) memoryWrite(address uint16, data uint8) {
-	cpu.Bus.MemoryWrite(address, data)
+	cpu.bus.MemoryWrite(address, data)
 }
 
 func (cpu *CPU) memoryReadU16(address uint16) uint16 {
-	return cpu.Bus.MemoryReadU16(address)
+	return cpu.bus.MemoryReadU16(address)
 }
 
 func (cpu *CPU) memoryWriteU16(address uint16, data uint16) {
-	cpu.Bus.MemoryWriteU16(address, data)
+	cpu.bus.MemoryWriteU16(address, data)
 }
 
 // Stack helpers
@@ -526,7 +526,7 @@ func NewCPU(consoleBus *bus.Bus) CPU {
 		statusFlags:    0b00100100,
 		stackPointer:   STACK_RESET,
 		programCounter: 0,
-		Bus:            consoleBus,
+		bus:            consoleBus,
 	}
 	return cpu
 }
