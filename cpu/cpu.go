@@ -451,7 +451,8 @@ func (cpu *CPU) rts(cpuStepInfos *StepInfos) {
 
 func (cpu *CPU) sbc(cpuStepInfos *StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
-	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, ^operand+1, cpu.isFlagSet(CARRY_FLAG))
+	// Result calculated is A-M-(1-C) = A + (256 - M) - 1 + C = A + (255 - M) + C
+	result, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, 255-operand, cpu.isFlagSet(CARRY_FLAG))
 	cpu.registerA = result
 	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
 	cpu.setFlagToValue(OVERFLOW_FLAG, hasOverflow)
