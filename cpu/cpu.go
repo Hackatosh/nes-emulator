@@ -232,8 +232,9 @@ func (cpu *CPU) beq(cpuStepInfos *StepInfos) {
 func (cpu *CPU) bit(cpuStepInfos *StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand & cpu.registerA
-	cpu.setZeroFlagAndNegativeFlagForResult(result)
-	cpu.setFlagToValue(OVERFLOW_FLAG, result&0b0100_0000 != 0)
+	cpu.setFlagToValue(ZERO_FLAG, result == 0)
+	cpu.setFlagToValue(NEGATIVE_FLAG, isNegative(operand))
+	cpu.setFlagToValue(OVERFLOW_FLAG, operand&0b0100_0000 != 0)
 }
 
 func (cpu *CPU) bmi(cpuStepInfos *StepInfos) {
