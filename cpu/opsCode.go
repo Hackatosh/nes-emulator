@@ -94,6 +94,36 @@ const (
 	TXA           = "TXA"
 	TXS           = "TXS"
 	TYA           = "TYA"
+	/***********************/
+	/* UNDOCUMENTED OPCODES
+	/* https://www.nesdev.org/undocumented_opcodes.txt
+	/* https://www.nesdev.org/wiki/Programming_with_unofficial_opcodes
+	*/
+	/***********************/
+	_AAC = "*AAC"
+	_AAX = "*AAX"
+	_ARR = "*ARR"
+	_ASR = "*ASR"
+	_ATX = "*ATX"
+	_AXA = "*AXA"
+	_AXS = "*AXS"
+	_DCP = "*DCP"
+	_DOP = "*DOP"
+	_ISC = "*ISC"
+	_KIL = "*KIL"
+	_LAR = "*LAR"
+	_LAX = "*LAX"
+	_NOP = "*NOP"
+	_RLA = "*RLA"
+	_RRA = "*RRA"
+	_SBC = "*SBC"
+	_SLO = "*SLO"
+	_SRE = "*SRE"
+	_SXA = "*SXA"
+	_SYA = "*SYA"
+	_TOP = "*TOP"
+	_XAA = "*XAA"
+	_XAS = "*XAS"
 )
 
 type OpCode struct {
@@ -312,6 +342,9 @@ var hexToOpsCode = map[uint8]OpCode{
 	0x9A: {operation: TXS, addressingMode: Implied, cycles: 2},
 	// TYA
 	0x98: {operation: TYA, addressingMode: Implied, cycles: 2},
+	/***********************/
+	/* UNDOCUMENTED OPCODES
+	/***********************/
 }
 
 func matchOpHexCodeWithOpCode(hexCode uint8) OpCode {

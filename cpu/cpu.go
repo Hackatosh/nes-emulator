@@ -522,6 +522,98 @@ func (cpu *CPU) tya(cpuStepInfos *StepInfos) {
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
+func (cpu *CPU) aac(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) aax(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) arr(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) asr(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) atx(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) axa(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) axs(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) dcp(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) dop(cpuStepInfos *StepInfos) {}
+
+func (cpu *CPU) isc(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) kil(cpuStepInfos *StepInfos) {
+	panic(fmt.Sprintf("kil opcode executed (hex code : %X)", cpuStepInfos.opHexCode))
+}
+
+func (cpu *CPU) lar(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) lax(cpuStepInfos *StepInfos) {
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.registerA = operand
+	cpu.registerX = cpu.registerA
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
+}
+
+func (cpu *CPU) rla(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) rra(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) slo(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) sre(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) sxa(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) sya(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+func (cpu *CPU) top(cpuStepInfos *StepInfos) {}
+
+func (cpu *CPU) xaa(cpuStepInfos *StepInfos) {
+	// Unreliable Opcode : https://www.nesdev.org/wiki/Visual6502wiki/6502_Opcode_8B_(XAA,_ANE)
+	panic(fmt.Sprintf("xaa opcode executed (hex code : %X)", cpuStepInfos.opHexCode))
+}
+
+func (cpu *CPU) xas(cpuStepInfos *StepInfos) {
+	// TODO Unofficial Opcode
+}
+
+/***********************/
+/* UNDOCUMENTED OPCODES
+/***********************/
+
 // Load program and reset CPU
 
 func NewCPU(consoleBus *bus.Bus) CPU {
@@ -677,6 +769,57 @@ func (cpu *CPU) Run() {
 			cpu.txs(stepInfos)
 		case TYA:
 			cpu.tya(stepInfos)
+		/***********************/
+		/* UNDOCUMENTED OPCODES
+		/***********************/
+		case _AAC:
+			cpu.aac(stepInfos)
+		case _AAX:
+			cpu.aax(stepInfos)
+		case _ARR:
+			cpu.arr(stepInfos)
+		case _ASR:
+			cpu.asr(stepInfos)
+		case _ATX:
+			cpu.atx(stepInfos)
+		case _AXA:
+			cpu.axa(stepInfos)
+		case _AXS:
+			cpu.axs(stepInfos)
+		case _DCP:
+			cpu.dcp(stepInfos)
+		case _DOP:
+			cpu.dop(stepInfos)
+		case _ISC:
+			cpu.isc(stepInfos)
+		case _KIL:
+			cpu.kil(stepInfos)
+		case _LAR:
+			cpu.lar(stepInfos)
+		case _LAX:
+			cpu.lax(stepInfos)
+		case _NOP:
+			cpu.nop(stepInfos)
+		case _RLA:
+			cpu.rla(stepInfos)
+		case _RRA:
+			cpu.rra(stepInfos)
+		case _SBC:
+			cpu.sbc(stepInfos)
+		case _SLO:
+			cpu.slo(stepInfos)
+		case _SRE:
+			cpu.sre(stepInfos)
+		case _SXA:
+			cpu.sxa(stepInfos)
+		case _SYA:
+			cpu.sya(stepInfos)
+		case _TOP:
+			cpu.top(stepInfos)
+		case _XAA:
+			cpu.xaa(stepInfos)
+		case _XAS:
+			cpu.xas(stepInfos)
 		default:
 			panic(fmt.Sprintf("operation %v is unsupported", opCode.operation))
 		}
