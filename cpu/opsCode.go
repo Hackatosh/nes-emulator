@@ -345,6 +345,135 @@ var hexToOpsCode = map[uint8]OpCode{
 	/***********************/
 	/* UNDOCUMENTED OPCODES
 	/***********************/
+	// *AAC"
+	0x0B: {operation: _AAC, addressingMode: Immediate, cycles: 2},
+	0x2B: {operation: _AAC, addressingMode: Immediate, cycles: 2},
+	// *AAX"
+	0x87: {operation: _AAX, addressingMode: ZeroPage, cycles: 3},
+	0x97: {operation: _AAX, addressingMode: ZeroPageY, cycles: 4},
+	0x83: {operation: _AAX, addressingMode: IndirectY, cycles: 6},
+	0x8F: {operation: _AAX, addressingMode: Absolute, cycles: 4},
+	// *ARR"
+	0x6B: {operation: _ARR, addressingMode: Immediate, cycles: 2},
+	// *ASR"
+	0x4B: {operation: _ASR, addressingMode: Immediate, cycles: 2},
+	// *ATX"
+	0xAB: {operation: _ATX, addressingMode: Immediate, cycles: 2},
+	// *AXA"
+	0x9F: {operation: _AXA, addressingMode: AbsoluteY, cycles: 5},
+	0x93: {operation: _AXA, addressingMode: IndirectY, cycles: 6},
+	// *AXS"
+	0xCB: {operation: _AXS, addressingMode: Immediate, cycles: 2},
+	// *DCP"
+	0xC7: {operation: _DCP, addressingMode: ZeroPage, cycles: 5},
+	0xD7: {operation: _DCP, addressingMode: ZeroPageX, cycles: 6},
+	0xCF: {operation: _DCP, addressingMode: Absolute, cycles: 6},
+	0xDF: {operation: _DCP, addressingMode: AbsoluteX, cycles: 7},
+	0xDB: {operation: _DCP, addressingMode: AbsoluteY, cycles: 7},
+	0xC3: {operation: _DCP, addressingMode: IndirectX, cycles: 8},
+	0xD3: {operation: _DCP, addressingMode: IndirectY, cycles: 8},
+	// *DOP"
+	0x04: {operation: _DOP, addressingMode: ZeroPage, cycles: 3},
+	0x14: {operation: _DOP, addressingMode: ZeroPageX, cycles: 4},
+	0x34: {operation: _DOP, addressingMode: ZeroPageX, cycles: 4},
+	0x44: {operation: _DOP, addressingMode: ZeroPage, cycles: 3},
+	0x54: {operation: _DOP, addressingMode: ZeroPageX, cycles: 4},
+	0x64: {operation: _DOP, addressingMode: ZeroPage, cycles: 3},
+	0x74: {operation: _DOP, addressingMode: ZeroPageX, cycles: 4},
+	0x80: {operation: _DOP, addressingMode: Immediate, cycles: 2},
+	0x82: {operation: _DOP, addressingMode: Immediate, cycles: 2},
+	0x89: {operation: _DOP, addressingMode: Immediate, cycles: 2},
+	0xC2: {operation: _DOP, addressingMode: Immediate, cycles: 2},
+	0xD4: {operation: _DOP, addressingMode: ZeroPageX, cycles: 4},
+	0xE2: {operation: _DOP, addressingMode: Immediate, cycles: 2},
+	0xF4: {operation: _DOP, addressingMode: ZeroPageX, cycles: 4},
+	// *ISC"
+	0xE7: {operation: _ISC, addressingMode: ZeroPage, cycles: 5},
+	0xF7: {operation: _ISC, addressingMode: ZeroPageX, cycles: 6},
+	0xEF: {operation: _ISC, addressingMode: Absolute, cycles: 6},
+	0xFF: {operation: _ISC, addressingMode: AbsoluteX, cycles: 7},
+	0xFB: {operation: _ISC, addressingMode: AbsoluteY, cycles: 7},
+	0xE3: {operation: _ISC, addressingMode: IndirectX, cycles: 8},
+	0xF3: {operation: _ISC, addressingMode: IndirectY, cycles: 8},
+	// *KIL"
+	0x02: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x12: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x22: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x32: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x42: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x52: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x62: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x72: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0x92: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0xB2: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0xD2: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	0xF2: {operation: _KIL, addressingMode: Implied, cycles: 0},
+	// *LAR"
+	0xBB: {operation: _LAR, addressingMode: AbsoluteY, cycles: 4},
+	// *LAX"
+	0xA7: {operation: _LAX, addressingMode: ZeroPage, cycles: 3},
+	0xB7: {operation: _LAX, addressingMode: ZeroPageY, cycles: 4},
+	0xAF: {operation: _LAX, addressingMode: Absolute, cycles: 4},
+	0xBF: {operation: _LAX, addressingMode: AbsoluteY, cycles: 4},
+	0xA3: {operation: _LAX, addressingMode: IndirectX, cycles: 6},
+	0xB3: {operation: _LAX, addressingMode: IndirectY, cycles: 5},
+	// *NOP"
+	0x1A: {operation: _NOP, addressingMode: Implied, cycles: 2},
+	0x3A: {operation: _NOP, addressingMode: Implied, cycles: 2},
+	0x5A: {operation: _NOP, addressingMode: Implied, cycles: 2},
+	0x7A: {operation: _NOP, addressingMode: Implied, cycles: 2},
+	0xDA: {operation: _NOP, addressingMode: Implied, cycles: 2},
+	0xFA: {operation: _NOP, addressingMode: Implied, cycles: 2},
+	// *RLA"
+	0x27: {operation: _RLA, addressingMode: ZeroPage, cycles: 5},
+	0x37: {operation: _RLA, addressingMode: ZeroPageX, cycles: 6},
+	0x2F: {operation: _RLA, addressingMode: Absolute, cycles: 6},
+	0x3F: {operation: _RLA, addressingMode: AbsoluteX, cycles: 7},
+	0x3B: {operation: _RLA, addressingMode: AbsoluteY, cycles: 7},
+	0x23: {operation: _RLA, addressingMode: IndirectX, cycles: 8},
+	0x33: {operation: _RLA, addressingMode: IndirectY, cycles: 8},
+	// *RRA"
+	0x67: {operation: _RRA, addressingMode: ZeroPage, cycles: 5},
+	0x77: {operation: _RRA, addressingMode: ZeroPageX, cycles: 6},
+	0x6F: {operation: _RRA, addressingMode: Absolute, cycles: 6},
+	0x7F: {operation: _RRA, addressingMode: AbsoluteX, cycles: 7},
+	0x7B: {operation: _RRA, addressingMode: AbsoluteY, cycles: 7},
+	0x63: {operation: _RRA, addressingMode: IndirectX, cycles: 8},
+	0x73: {operation: _RRA, addressingMode: IndirectY, cycles: 8},
+	// *SBC"
+	0xEB: {operation: _SBC, addressingMode: Immediate, cycles: 2},
+	// *SLO"
+	0x07: {operation: _SLO, addressingMode: ZeroPage, cycles: 5},
+	0x17: {operation: _SLO, addressingMode: ZeroPageX, cycles: 6},
+	0x0F: {operation: _SLO, addressingMode: Absolute, cycles: 6},
+	0x1F: {operation: _SLO, addressingMode: AbsoluteX, cycles: 7},
+	0x1B: {operation: _SLO, addressingMode: AbsoluteY, cycles: 7},
+	0x03: {operation: _SLO, addressingMode: IndirectX, cycles: 8},
+	0x13: {operation: _SLO, addressingMode: IndirectY, cycles: 8},
+	// *SRE"
+	0x47: {operation: _SRE, addressingMode: ZeroPage, cycles: 5},
+	0x57: {operation: _SRE, addressingMode: ZeroPageX, cycles: 6},
+	0x4F: {operation: _SRE, addressingMode: Absolute, cycles: 6},
+	0x5F: {operation: _SRE, addressingMode: AbsoluteX, cycles: 7},
+	0x5B: {operation: _SRE, addressingMode: AbsoluteY, cycles: 7},
+	0x43: {operation: _SRE, addressingMode: IndirectX, cycles: 8},
+	0x53: {operation: _SRE, addressingMode: IndirectY, cycles: 8},
+	// *SXA"
+	0x9E: {operation: _SXA, addressingMode: AbsoluteY, cycles: 5},
+	// *SYA"
+	0x9C: {operation: _SYA, addressingMode: AbsoluteX, cycles: 5},
+	// *TOP"
+	0x0C: {operation: _TOP, addressingMode: Absolute, cycles: 4},
+	0x1C: {operation: _TOP, addressingMode: AbsoluteX, cycles: 4},
+	0x3C: {operation: _TOP, addressingMode: AbsoluteX, cycles: 4},
+	0x5C: {operation: _TOP, addressingMode: AbsoluteX, cycles: 4},
+	0x7C: {operation: _TOP, addressingMode: AbsoluteX, cycles: 4},
+	0xDC: {operation: _TOP, addressingMode: AbsoluteX, cycles: 4},
+	0xFC: {operation: _TOP, addressingMode: AbsoluteX, cycles: 4},
+	// *XAA"
+	0x8B: {operation: _XAA, addressingMode: Immediate, cycles: 2},
+	// *XAS"
+	0x9B: {operation: _XAS, addressingMode: AbsoluteY, cycles: 5},
 }
 
 func matchOpHexCodeWithOpCode(hexCode uint8) OpCode {

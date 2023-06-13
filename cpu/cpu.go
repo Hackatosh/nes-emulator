@@ -547,7 +547,8 @@ func (cpu *CPU) axa(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) axs(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerA)
+	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerX)
 }
 
 func (cpu *CPU) dcp(cpuStepInfos *StepInfos) {
