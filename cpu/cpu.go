@@ -523,15 +523,29 @@ func (cpu *CPU) tya(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) aac(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	var result = operand & cpu.registerA
+	cpu.setZeroFlagAndNegativeFlagForResult(result)
+	cpu.setFlagToValue(CARRY_FLAG, isNegative(result))
 }
 
 func (cpu *CPU) aax(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	cpu.memoryWrite(cpuStepInfos.operandAddress, cpu.registerA&cpu.registerX)
 }
 
 func (cpu *CPU) arr(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	var carryMask uint8 = 0b0000_0000
+	if cpu.isFlagSet(CARRY_FLAG) {
+		carryMask = 0b1000_0000
+	}
+	cpu.registerA = (operand & cpu.registerA >> 1) | carryMask
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
+	cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
+	var isBit5Set = cpu.registerA&0b0001_0000 == 1
+	var isBit6Set = cpu.registerA&0b0010_0000 == 1
+	cpu.setFlagToValue(CARRY_FLAG, isBit6Set)
+	cpu.setFlagToValue(OVERFLOW_FLAG, isBit6Set != isBit5Set) // XOR
 }
 
 func (cpu *CPU) asr(cpuStepInfos *StepInfos) {
@@ -539,7 +553,10 @@ func (cpu *CPU) asr(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) atx(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.registerA = operand & cpu.registerA
+	cpu.registerX = cpu.registerA
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerX)
 }
 
 func (cpu *CPU) axa(cpuStepInfos *StepInfos) {
@@ -845,16 +862,27 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 	var hexOpCodeTrace string
 	switch bytesReadForAddressing {
 	case 3:
-		hexOpCodeTrace = fmt.Sprintf("%02X %02X %02X  ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2))
+		hexOpCodeTrace = fmt.Sprintf("%02X %02X %02X", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1), cpu.memoryRead(cpu.programCounter+2))
 	case 2:
-		hexOpCodeTrace = fmt.Sprintf("%02X %02X     ", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1))
+		hexOpCodeTrace = fmt.Sprintf("%02X %02X", cpuStepInfos.opHexCode, cpu.memoryRead(cpu.programCounter+1))
 	case 1:
-		hexOpCodeTrace = fmt.Sprintf("%02X        ", cpuStepInfos.opHexCode)
+		hexOpCodeTrace = fmt.Sprintf("%02X", cpuStepInfos.opHexCode)
 	}
-	builder.WriteString(fmt.Sprintf("%-10s", hexOpCodeTrace))
+
+	// Format log properly for unofficial operations
+	if strings.HasPrefix(string(cpuStepInfos.opCode.operation), "*") {
+		builder.WriteString(fmt.Sprintf("%-9s", hexOpCodeTrace))
+	} else {
+		builder.WriteString(fmt.Sprintf("%-10s", hexOpCodeTrace))
+	}
 
 	// CPU opcode in assembly
-	builder.WriteString(fmt.Sprintf("%s ", cpuStepInfos.opCode.operation))
+	var operation = cpuStepInfos.opCode.operation
+	// Format log properly for nestest as it conflate *NOP/*DOP/*TOP as *NOP
+	if operation == _DOP || operation == _TOP {
+		operation = _NOP
+	}
+	builder.WriteString(fmt.Sprintf("%s ", operation))
 
 	var addressingTrace string
 	switch cpuStepInfos.opCode.addressingMode {
