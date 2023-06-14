@@ -132,7 +132,7 @@ func (cpu *CPU) getOperandAddress(mode AddressingMode, opCodeProgramCounter uint
 		if !isNegative(offset) {
 			return opCodeProgramCounter + uint16(offset) + 2
 		} else {
-			return opCodeProgramCounter + 0x100 - uint16(offset) + 2
+			return opCodeProgramCounter - (0x100 - uint16(offset)) + 2
 		}
 	case ZeroPage:
 		// It's only a 8 bits address with Zero Page, so you can only get an address in the first 256 memory cells

@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const ROM_PATH string = "resources\\nestest.nes"
+const ROM_PATH string = "resources/nestest.nes"
 
 func main() {
 	fmt.Println(fmt.Sprintf("Reading rom  file at path %s...", ROM_PATH))
