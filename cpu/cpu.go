@@ -522,6 +522,12 @@ func (cpu *CPU) tya(cpuStepInfos *StepInfos) {
 	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
+/***********************/
+/* UNDOCUMENTED OPCODES
+// TODO: some of them could probably be simplified (like those combining operations could reuse basic operations)
+*/
+/***********************/
+
 func (cpu *CPU) aac(cpuStepInfos *StepInfos) {
 	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
 	var result = operand & cpu.registerA
@@ -549,7 +555,11 @@ func (cpu *CPU) arr(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) asr(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.registerA = operand & cpu.registerA
+	cpu.setFlagToValue(CARRY_FLAG, cpu.registerA&0b0000_0001 != 0)
+	cpu.registerA = cpu.registerA >> 1
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu *CPU) atx(cpuStepInfos *StepInfos) {
@@ -560,7 +570,8 @@ func (cpu *CPU) atx(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) axa(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var result = cpu.registerA & cpu.registerX & uint8(cpuStepInfos.operandAddress>>8)
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 }
 
 func (cpu *CPU) axs(cpuStepInfos *StepInfos) {
@@ -593,7 +604,12 @@ func (cpu *CPU) kil(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) lar(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	var result = operand & cpu.stackPointer
+	cpu.registerA = result
+	cpu.registerX = result
+	cpu.stackPointer = result
+	cpu.setZeroFlagAndNegativeFlagForResult(result)
 }
 
 func (cpu *CPU) lax(cpuStepInfos *StepInfos) {
@@ -652,11 +668,13 @@ func (cpu *CPU) sre(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) sxa(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var result = (uint8(cpuStepInfos.operandAddress>>8) + 1) & cpu.registerX
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 }
 
 func (cpu *CPU) sya(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var result = (uint8(cpuStepInfos.operandAddress>>8) + 1) & cpu.registerY
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 }
 
 func (cpu *CPU) top(cpuStepInfos *StepInfos) {}
@@ -667,7 +685,9 @@ func (cpu *CPU) xaa(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) xas(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	cpu.stackPointer = cpu.registerA & cpu.registerX
+	var result = (uint8(cpuStepInfos.operandAddress>>8) + 1) & cpu.stackPointer
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
 }
 
 /***********************/
