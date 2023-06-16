@@ -604,19 +604,51 @@ func (cpu *CPU) lax(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) rla(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var carryMask uint8 = 0b0000_0000
+	if cpu.isFlagSet(CARRY_FLAG) {
+		carryMask = 0b0000_0001
+	}
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.setFlagToValue(CARRY_FLAG, operand&0b1000_0000 != 0)
+	var result = operand<<1 | carryMask
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
+	cpu.registerA = result & cpu.registerA
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu *CPU) rra(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var carryMask uint8 = 0b0000_0000
+	if cpu.isFlagSet(CARRY_FLAG) {
+		carryMask = 0b1000_0000
+	}
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.setFlagToValue(CARRY_FLAG, operand&0b0000_0001 != 0)
+	var result = operand>>1 | carryMask
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
+	cpu.setZeroFlagAndNegativeFlagForResult(result)
+	resultAdd, hasCarry, hasOverflow := cpu.addWithCarry(cpu.registerA, result, cpu.isFlagSet(CARRY_FLAG))
+	cpu.registerA = resultAdd
+	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
+	cpu.setFlagToValue(OVERFLOW_FLAG, hasOverflow)
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu *CPU) slo(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.setFlagToValue(CARRY_FLAG, operand&0b1000_0000 != 0)
+	var result = operand << 1
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
+	cpu.registerA = result | cpu.registerA
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu *CPU) sre(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.setFlagToValue(CARRY_FLAG, operand&0b0000_0001 != 0)
+	var result = operand >> 1
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
+	cpu.registerA = cpu.registerA ^ result
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu *CPU) sxa(cpuStepInfos *StepInfos) {
