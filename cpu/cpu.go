@@ -569,13 +569,23 @@ func (cpu *CPU) axs(cpuStepInfos *StepInfos) {
 }
 
 func (cpu *CPU) dcp(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	cpu.memoryWrite(cpuStepInfos.operandAddress, operand-1)
+	cpu.compare(cpuStepInfos, cpu.registerA)
 }
 
 func (cpu *CPU) dop(cpuStepInfos *StepInfos) {}
 
 func (cpu *CPU) isc(cpuStepInfos *StepInfos) {
-	// TODO Unofficial Opcode
+	var operand = cpu.memoryRead(cpuStepInfos.operandAddress)
+	var result = operand + 1
+	cpu.memoryWrite(cpuStepInfos.operandAddress, result)
+	// Result calculated is A-M-(1-C) = A + (256 - M) - 1 + C = A + (255 - M) + C
+	var resultAdd, hasCarry, hasOverflow = cpu.addWithCarry(cpu.registerA, 255-result, cpu.isFlagSet(CARRY_FLAG))
+	cpu.registerA = resultAdd
+	cpu.setFlagToValue(CARRY_FLAG, hasCarry)
+	cpu.setFlagToValue(OVERFLOW_FLAG, hasOverflow)
+	cpu.setZeroFlagAndNegativeFlagForResult(cpu.registerA)
 }
 
 func (cpu *CPU) kil(cpuStepInfos *StepInfos) {
@@ -848,6 +858,22 @@ func (cpu *CPU) Run() {
 	}
 }
 
+// TODO : change illegal opcode to match those
+func convertOperationForPrinting(operation Operation) string {
+	switch operation {
+	case _DOP:
+		return "*NOP"
+	case _TOP:
+		return "*NOP"
+	case _AAX:
+		return "*SAX"
+	case _ISC:
+		return "*ISB"
+	default:
+		return string(operation)
+	}
+}
+
 // Must be run at the beginning of the loop
 func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 	var builder = strings.Builder{}
@@ -877,12 +903,7 @@ func printCPUState(cpu *CPU, cpuStepInfos *StepInfos) {
 	}
 
 	// CPU opcode in assembly
-	var operation = cpuStepInfos.opCode.operation
-	// Format log properly for nestest as it conflate *NOP/*DOP/*TOP as *NOP
-	if operation == _DOP || operation == _TOP {
-		operation = _NOP
-	}
-	builder.WriteString(fmt.Sprintf("%s ", operation))
+	builder.WriteString(fmt.Sprintf("%s ", convertOperationForPrinting(cpuStepInfos.opCode.operation)))
 
 	var addressingTrace string
 	switch cpuStepInfos.opCode.addressingMode {

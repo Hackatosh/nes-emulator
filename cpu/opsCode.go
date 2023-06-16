@@ -351,7 +351,7 @@ var hexToOpsCode = map[uint8]OpCode{
 	// *AAX"
 	0x87: {operation: _AAX, addressingMode: ZeroPage, cycles: 3},
 	0x97: {operation: _AAX, addressingMode: ZeroPageY, cycles: 4},
-	0x83: {operation: _AAX, addressingMode: IndirectY, cycles: 6},
+	0x83: {operation: _AAX, addressingMode: IndirectX, cycles: 6},
 	0x8F: {operation: _AAX, addressingMode: Absolute, cycles: 4},
 	// *ARR"
 	0x6B: {operation: _ARR, addressingMode: Immediate, cycles: 2},
